@@ -74,32 +74,24 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ## Tasks
 
-- [ ] 0.0 Create feature branch
-  - [ ] 0.1 Create and checkout a new branch: `git checkout -b feature/rag-benchmark-curation`
+- [x] 0.0 Create feature branch
+  - [x] 0.1 Create and checkout a new branch: `git checkout -b feature/rag-benchmark-curation`
 
-- [ ] 1.0 Set up project structure and dependencies
-  - [ ] 1.1 Create directory structure: `src/`, `src/ingest/`, `src/generate/`, `src/validate/`, `src/frozen/`, `src/export/`, `tests/`, `configs/`, `data/`
-  - [ ] 1.2 Create `pyproject.toml` with project metadata, Python 3.11+ requirement, and dependencies:
-    - `click` (CLI framework)
-    - `google-generativeai` (Gemini API)
-    - `pydantic` (data validation)
-    - `pypdf` or `pdfplumber` (PDF parsing)
-    - `beautifulsoup4` (HTML parsing)
-    - `pyyaml` (config files)
-    - `python-dotenv` (environment variables)
-    - `pytest` (testing)
-  - [ ] 1.3 Create `requirements.txt` with pinned versions
-  - [ ] 1.4 Create `.env.example` with `GEMINI_API_KEY=your_key_here`
-  - [ ] 1.5 Create `src/__init__.py` and all module `__init__.py` files
-  - [ ] 1.6 Create `src/models.py` with Pydantic models:
+- [x] 1.0 Set up project structure and dependencies
+  - [x] 1.1 Create directory structure: `src/`, `src/ingest/`, `src/generate/`, `src/validate/`, `src/frozen/`, `src/export/`, `tests/`, `configs/`, `data/`
+  - [x] 1.2 Create `pyproject.toml` with project metadata, Python 3.11+ requirement, and pinned dependencies (click, google-generativeai, pydantic, pdfplumber, beautifulsoup4, pyyaml, python-dotenv, pytest, ruff)
+  - [x] 1.3 ~~Create `requirements.txt`~~ (skipped: using pyproject.toml with pinned versions)
+  - [x] 1.4 Create `.env.example` with `GEMINI_API_KEY=your_key_here`
+  - [x] 1.5 Create `src/__init__.py` and all module `__init__.py` files
+  - [x] 1.6 Create `src/models.py` with Pydantic models:
     - `CDRChunk` (doc_id, source_type, chunk_id, text, page_ref, section_path, table_json)
     - `GoldEvidence` (doc_id, chunk_id, char_start, char_end, page_ref)
     - `MCQItem` (qid, question, options, answer_key, gold_evidence, slice, required_hops, reasoning_type, failure_modes)
     - `FrozenContext` (qid, chunks: list of chunk_id + text)
-  - [ ] 1.7 Create `src/config.py` with config loading from YAML and CLI overrides
-  - [ ] 1.8 Create `configs/default.yaml` with sensible defaults for all pipeline stages
-  - [ ] 1.9 Create `tests/conftest.py` with shared fixtures (sample chunks, sample items, temp directories)
-  - [ ] 1.10 Verify setup: run `pip install -e .` and `pytest tests/` (should pass with no tests yet)
+  - [x] 1.7 Create `src/config.py` with config loading from YAML and CLI overrides
+  - [x] 1.8 Create `configs/default.yaml` with sensible defaults for all pipeline stages
+  - [x] 1.9 Create `tests/conftest.py` with shared fixtures (sample chunks, sample items, temp directories)
+  - [x] 1.10 Verify setup: run `pip install -e .` and `pytest tests/` (should pass with no tests yet)
 
 - [ ] 2.0 Implement document ingestion pipeline
   - [ ] 2.1 Create `src/ingest/cdr.py`:

@@ -1,0 +1,21 @@
+# Default pipeline configuration for agentic-eval-curator
+
+data_dir: data
+
+chunking:
+  strategy: fixed_window
+  chunk_size: 512
+  chunk_overlap: 50
+
+generation:
+  model: gemini-2.5-flash
+  temperature: 0.7
+  max_output_tokens: 4096
+  items_per_chunk_group: 3
+
+frozen:
+  distractor_count: 10
+  distractor_strategy: random
+
+# Set for reproducible runs (optional)
+# seed: 42
