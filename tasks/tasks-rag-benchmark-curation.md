@@ -195,25 +195,25 @@ Update the file after completing each sub-task, not just after completing an ent
     - Test with valid and invalid items
     - Test report generation
 
-- [ ] 5.0 Implement frozen context builder
-  - [ ] 5.1 Create `src/frozen/distractors.py`:
+- [x] 5.0 Implement frozen context builder
+  - [x] 5.1 Create `src/frozen/distractors.py`:
     - `DistractorSelector` base class with `select(item, all_chunks, n) -> list[CDRChunk]`
     - `RandomSelector` - randomly sample n chunks excluding gold
     - `SameDocSelector` - prefer chunks from same doc as gold (tests intra-doc filtering)
     - `SemanticSelector` - select chunks with high embedding similarity but different content (optional, can be stub for v1)
     - `get_selector(strategy_name)` factory function
-  - [ ] 5.2 Create `src/frozen/builder.py`:
+  - [x] 5.2 Create `src/frozen/builder.py`:
     - `FrozenContextBuilder` class
     - `build(item, all_chunks, config) -> FrozenContext`
     - Include gold evidence chunks + n distractor chunks (default n=10)
     - Shuffle order to avoid position bias
     - Store chunk_id and full text for each chunk
-  - [ ] 5.3 Create `src/frozen/pipeline.py`:
+  - [x] 5.3 Create `src/frozen/pipeline.py`:
     - `FrozenPipeline` class orchestrating load → build → save
     - Load validated items from `data/validated/`
     - Load all chunks from `data/chunks/`
     - Output frozen contexts to `data/frozen_contexts/`
-  - [ ] 5.4 Write `tests/test_frozen_builder.py`:
+  - [x] 5.4 Write `tests/test_frozen_builder.py`:
     - Test distractor selection strategies
     - Test frozen context includes gold chunks
     - Test distractor count is correct

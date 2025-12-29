@@ -177,11 +177,37 @@ Building a universal benchmark curation system that converts arbitrary input doc
 - [x] Created unit tests (59 new tests, 174 total):
   - `tests/test_validator.py` - All validation tests (59 tests)
 
+### 10. Frozen Context Builder (Task 5.0)
+- [x] Created `src/frozen/distractors.py`:
+  - `DistractorSelector` abstract base class with `select(item, all_chunks, n, seed)`
+  - `RandomSelector` - randomly sample n chunks excluding gold evidence
+  - `SameDocSelector` - prefer chunks from same document as gold (tests intra-doc filtering)
+  - `SemanticSelector` - stub implementation (falls back to random for v1)
+  - `get_selector()` factory function
+  - `AVAILABLE_SELECTORS` registry
+- [x] Created `src/frozen/builder.py`:
+  - `FrozenContextBuilder` class with configurable strategy and distractor count
+  - `build(item, all_chunks, seed) -> BuildResult`
+  - `build_batch()` for multiple items
+  - Includes gold evidence chunks + n distractor chunks (default n=10)
+  - Shuffles order to avoid position bias
+  - `BuildResult` dataclass with context, counts, and missing gold info
+- [x] Created `src/frozen/pipeline.py`:
+  - `FrozenPipeline` class orchestrating load → build → save
+  - Loads validated items from `data/validated/`
+  - Loads all chunks from `data/chunks/`
+  - Outputs frozen contexts to `data/frozen_contexts/`
+  - `FrozenStats` dataclass with duration, averages, and to_dict()
+  - `build_single()` convenience method
+- [x] Updated `src/frozen/__init__.py` with exports
+- [x] Created unit tests (46 new tests, 220 total):
+  - `tests/test_frozen_builder.py` - All frozen context tests (46 tests)
+
 ---
 
 ## Current Status
 
-**No failures.** Task 4.0 complete. Ready to start Task 5.0.
+**No failures.** Task 5.0 complete. Ready to start Task 6.0.
 
 ---
 
@@ -231,7 +257,11 @@ agentic-eval-curator/
 │   │   ├── rules.py                # Validation rules (6 rules)
 │   │   ├── validator.py            # Validator class with batch support
 │   │   └── pipeline.py             # Validation pipeline orchestration
-│   ├── frozen/                     # (empty, Task 5.0)
+│   ├── frozen/
+│   │   ├── __init__.py             # Module exports
+│   │   ├── distractors.py          # Distractor selection strategies (3 strategies)
+│   │   ├── builder.py              # FrozenContextBuilder class
+│   │   └── pipeline.py             # Frozen context pipeline orchestration
 │   └── export/                     # (empty, Task 6.0)
 │
 ├── tasks/
@@ -244,6 +274,7 @@ agentic-eval-curator/
     ├── test_cdr.py                 # CDR conversion tests (22 tests)
     ├── test_chunker.py             # Chunker tests (16 tests)
     ├── test_evidence.py            # Evidence extraction tests (22 tests)
+    ├── test_frozen_builder.py      # Frozen context tests (46 tests)
     ├── test_manifest.py            # Manifest tests (16 tests)
     ├── test_mcq_generator.py       # MCQ generator tests (22 tests)
     ├── test_parsers.py             # Parser tests (11 tests)
@@ -254,13 +285,11 @@ agentic-eval-curator/
 
 ## Next Steps
 
-1. **Task 5.0: Implement frozen context builder**
-   - 5.1 `src/frozen/distractors.py` — Distractor selection strategies (Random, SameDoc, Semantic)
-   - 5.2 `src/frozen/builder.py` — FrozenContextBuilder class
-   - 5.3 `src/frozen/pipeline.py` — Frozen context pipeline orchestration
-   - 5.4 Unit tests
-
-2. **Task 6.0: Implement export + CLI**
+1. **Task 6.0: Implement export + CLI**
+   - 6.1 `src/export/exporter.py` — DatasetExporter class
+   - 6.2 `src/cli.py` — Click CLI commands (ingest, generate, validate, build-frozen, export)
+   - 6.3 Update pyproject.toml with CLI entry point
+   - 6.4-6.7 Unit tests and integration tests
 
 ---
 
