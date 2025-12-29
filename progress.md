@@ -149,11 +149,39 @@ Building a universal benchmark curation system that converts arbitrary input doc
   - `tests/test_evidence.py` - Evidence extraction tests (22 tests)
   - `tests/test_mcq_generator.py` - Generator tests with mocked API (22 tests)
 
+### 9. Validation Pipeline (Task 4.0)
+- [x] Created `src/validate/rules.py`:
+  - `Rule` abstract base class with `validate(item, chunks) -> (bool, str)`
+  - `SingleAnswerRule` - verify answer_key is A/B/C/D
+  - `OptionsCompleteRule` - verify all 4 options present and non-empty
+  - `EvidenceExistsRule` - verify gold evidence spans exist in referenced chunks
+  - `AmbiguityRule` - flag items where distractors too similar to correct answer (SequenceMatcher)
+  - `HopCountRule` - verify required_hops consistent with slice assignment
+  - `EvidenceCountRule` - verify evidence count >= required_hops
+  - `get_default_rules()` and `get_rule()` factory functions
+  - `AVAILABLE_RULES` registry for all rules
+- [x] Created `src/validate/validator.py`:
+  - `Validator` class with configurable rule list
+  - `validate(item, chunks) -> ValidationResult`
+  - `validate_batch(items, chunks) -> ValidationReport`
+  - `ValidationReport` dataclass with pass_rate, failure_counts, to_dict()
+  - Methods: `add_rule()`, `remove_rule()`, `get_rule_names()`
+- [x] Created `src/validate/pipeline.py`:
+  - `ValidationPipeline` class orchestrating load → validate → partition
+  - Loads items from `data/generated/` and chunks from `data/chunks/`
+  - Partitions into `data/validated/` (passed) and `data/rejected/` (failed)
+  - Saves validation report as JSON
+  - `ValidationStats` dataclass for run statistics
+  - `validate_single()` convenience method
+- [x] Updated `src/validate/__init__.py` with exports
+- [x] Created unit tests (59 new tests, 174 total):
+  - `tests/test_validator.py` - All validation tests (59 tests)
+
 ---
 
 ## Current Status
 
-**No failures.** Task 3.0 complete. Ready to start Task 4.0.
+**No failures.** Task 4.0 complete. Ready to start Task 5.0.
 
 ---
 
@@ -198,7 +226,11 @@ agentic-eval-curator/
 │   │   ├── mcq_generator.py        # Gemini API MCQ generation
 │   │   ├── pipeline.py             # Generation pipeline orchestration
 │   │   └── prompts.py              # Slice-specific prompt templates
-│   ├── validate/                   # (empty, Task 4.0)
+│   ├── validate/
+│   │   ├── __init__.py             # Module exports
+│   │   ├── rules.py                # Validation rules (6 rules)
+│   │   ├── validator.py            # Validator class with batch support
+│   │   └── pipeline.py             # Validation pipeline orchestration
 │   ├── frozen/                     # (empty, Task 5.0)
 │   └── export/                     # (empty, Task 6.0)
 │
@@ -214,21 +246,21 @@ agentic-eval-curator/
     ├── test_evidence.py            # Evidence extraction tests (22 tests)
     ├── test_manifest.py            # Manifest tests (16 tests)
     ├── test_mcq_generator.py       # MCQ generator tests (22 tests)
-    └── test_parsers.py             # Parser tests (11 tests)
+    ├── test_parsers.py             # Parser tests (11 tests)
+    └── test_validator.py           # Validation tests (59 tests)
 ```
 
 ---
 
 ## Next Steps
 
-1. **Task 4.0: Implement validation pipeline**
-   - 4.1 `src/validate/rules.py` — Validation rules (SingleAnswer, EvidenceExists, Ambiguity, OptionsComplete)
-   - 4.2 `src/validate/validator.py` — Validator class with configurable rules
-   - 4.3 `src/validate/pipeline.py` — Validation orchestration
-   - 4.4 Unit tests
+1. **Task 5.0: Implement frozen context builder**
+   - 5.1 `src/frozen/distractors.py` — Distractor selection strategies (Random, SameDoc, Semantic)
+   - 5.2 `src/frozen/builder.py` — FrozenContextBuilder class
+   - 5.3 `src/frozen/pipeline.py` — Frozen context pipeline orchestration
+   - 5.4 Unit tests
 
-2. **Task 5.0: Implement frozen context builder**
-3. **Task 6.0: Implement export + CLI**
+2. **Task 6.0: Implement export + CLI**
 
 ---
 

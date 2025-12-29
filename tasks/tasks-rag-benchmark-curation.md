@@ -170,25 +170,27 @@ Update the file after completing each sub-task, not just after completing an ent
     - Test evidence span extraction
     - Test offset calculation accuracy
 
-- [ ] 4.0 Implement validation pipeline
-  - [ ] 4.1 Create `src/validate/rules.py`:
+- [x] 4.0 Implement validation pipeline
+  - [x] 4.1 Create `src/validate/rules.py`:
     - `Rule` base class with `validate(item, chunks) -> (bool, str)`
     - `SingleAnswerRule` - verify exactly one answer marked correct
     - `EvidenceExistsRule` - verify gold evidence spans exist in referenced chunks
     - `AmbiguityRule` - flag items where distractors are too similar to correct answer (basic string similarity)
     - `OptionsCompleteRule` - verify all 4 options (A-D) are present and non-empty
-  - [ ] 4.2 Create `src/validate/validator.py`:
+    - `HopCountRule` - verify required_hops is consistent with slice assignment
+    - `EvidenceCountRule` - verify evidence count matches required hops
+  - [x] 4.2 Create `src/validate/validator.py`:
     - `Validator` class with configurable rule list
     - `validate(item, chunks) -> ValidationResult` (passed, failed_rules, warnings)
     - `validate_batch(items, chunks) -> ValidationReport`
-  - [ ] 4.3 Create `src/validate/pipeline.py`:
+  - [x] 4.3 Create `src/validate/pipeline.py`:
     - `ValidationPipeline` class orchestrating load → validate → partition
     - Load items from `data/generated/`
     - Load chunks for evidence verification
     - Output passed items to `data/validated/`
     - Output failed items to `data/rejected/` with failure reasons
     - Generate validation report (pass/fail counts, flagged item IDs)
-  - [ ] 4.4 Write `tests/test_validator.py`:
+  - [x] 4.4 Write `tests/test_validator.py`:
     - Test each validation rule
     - Test with valid and invalid items
     - Test report generation
