@@ -137,36 +137,36 @@ Update the file after completing each sub-task, not just after completing an ent
     - Test CDR conversion
     - Test doc_id and chunk_id generation stability
 
-- [ ] 3.0 Implement MCQ generation with Gemini API
-  - [ ] 3.1 Create `src/generate/prompts.py`:
+- [x] 3.0 Implement MCQ generation with Gemini API
+  - [x] 3.1 Create `src/generate/prompts.py`:
     - `SLICE_A_PROMPT` (1-hop factual lookup)
     - `SLICE_B_PROMPT` (2-hop compositional reasoning)
     - `SLICE_C_PROMPT` (hard agentic: exceptions, precedence, contradictions, table+prose joins)
     - `format_prompt(slice, chunks, config)` function
     - Include reasoning_type and failure_mode label requirements in prompts
-  - [ ] 3.2 Create `src/generate/evidence.py`:
+  - [x] 3.2 Create `src/generate/evidence.py`:
     - `extract_evidence_spans(question, answer, chunks) -> list[GoldEvidence]`
     - Find exact text matches for answer content in source chunks
     - Calculate character offsets
-  - [ ] 3.3 Create `src/generate/mcq_generator.py`:
+  - [x] 3.3 Create `src/generate/mcq_generator.py`:
     - `MCQGenerator` class with Gemini API client
     - `generate(chunks, slice, config) -> list[MCQItem]`
     - Parse structured output from Gemini (JSON mode)
     - Assign stable QIDs: `{doc_id}_{index}`
     - Set `required_hops` based on slice (A=1, B=2, C=2-3)
     - Support seeded generation via config
-  - [ ] 3.4 Create `src/generate/pipeline.py`:
+  - [x] 3.4 Create `src/generate/pipeline.py`:
     - `GenerationPipeline` class orchestrating chunk loading → generation → save
     - Load chunks from `data/chunks/`
     - Group chunks by doc_id or sliding window for context
     - Output items to `data/generated/{batch_id}.jsonl`
     - Log generation stats (items per slice, failures)
-  - [ ] 3.5 Write `tests/test_mcq_generator.py`:
+  - [x] 3.5 Write `tests/test_mcq_generator.py`:
     - Mock Gemini API responses
     - Test QID generation stability
     - Test slice assignment
     - Test error handling for API failures
-  - [ ] 3.6 Write `tests/test_evidence.py`:
+  - [x] 3.6 Write `tests/test_evidence.py`:
     - Test evidence span extraction
     - Test offset calculation accuracy
 

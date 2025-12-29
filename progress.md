@@ -120,11 +120,40 @@ Building a universal benchmark curation system that converts arbitrary input doc
   - `tests/test_manifest.py` - Manifest tests (16 tests)
   - `tests/test_cdr.py` - CDR conversion tests (22 tests)
 
+### 8. MCQ Generation Pipeline (Task 3.0)
+- [x] Created `src/generate/prompts.py`:
+  - Slice-specific prompts: `SLICE_A_PROMPT` (1-hop), `SLICE_B_PROMPT` (2-hop), `SLICE_C_PROMPT` (hard agentic)
+  - `format_prompt()` function combining chunks with slice prompts
+  - `format_chunk_data()` for chunk formatting with metadata
+  - JSON output schema for Gemini structured output mode
+  - `get_required_hops()` mapping slice to hop count
+- [x] Created `src/generate/evidence.py`:
+  - `find_span_in_chunk()` - exact/normalized/case-insensitive text matching
+  - `extract_evidence_spans()` - converts LLM text spans to `GoldEvidence` objects
+  - `validate_evidence_spans()` - verifies references exist in chunks
+  - `get_evidence_text()` - retrieves actual evidence text
+- [x] Created `src/generate/mcq_generator.py`:
+  - `MCQGenerator` class wrapping Gemini API with JSON mode
+  - `generate(chunks, slice_type)` returns `GenerationResult` with items/errors
+  - Mapping dicts for `ReasoningType` and `FailureMode` enums
+  - Stable QID generation: `{doc_id}_q{counter}`
+  - Error handling for API failures and invalid JSON
+- [x] Created `src/generate/pipeline.py`:
+  - `GenerationPipeline` class orchestrating full workflow
+  - Loads chunks from `data/chunks/`, groups by doc_id
+  - Creates overlapping chunk windows for context
+  - Outputs to `data/generated/{batch_id}.jsonl`
+  - `GenerationStats` dataclass for tracking
+- [x] Updated `src/generate/__init__.py` with exports
+- [x] Created unit tests (44 new tests, 115 total):
+  - `tests/test_evidence.py` - Evidence extraction tests (22 tests)
+  - `tests/test_mcq_generator.py` - Generator tests with mocked API (22 tests)
+
 ---
 
 ## Current Status
 
-**No failures.** Task 2.0 complete. Ready to start Task 3.0.
+**No failures.** Task 3.0 complete. Ready to start Task 4.0.
 
 ---
 
@@ -163,7 +192,12 @@ agentic-eval-curator/
 │   │   ├── manifest.py             # Corpus manifest for incremental ingestion
 │   │   ├── parsers.py              # Document parsers (PDF, TXT, CSV, JSON, HTML)
 │   │   └── pipeline.py             # Ingestion pipeline orchestration
-│   ├── generate/                   # (empty, Task 3.0)
+│   ├── generate/
+│   │   ├── __init__.py             # Module exports
+│   │   ├── evidence.py             # Gold evidence span extraction
+│   │   ├── mcq_generator.py        # Gemini API MCQ generation
+│   │   ├── pipeline.py             # Generation pipeline orchestration
+│   │   └── prompts.py              # Slice-specific prompt templates
 │   ├── validate/                   # (empty, Task 4.0)
 │   ├── frozen/                     # (empty, Task 5.0)
 │   └── export/                     # (empty, Task 6.0)
@@ -175,26 +209,26 @@ agentic-eval-curator/
 └── tests/
     ├── __init__.py
     ├── conftest.py                 # Shared fixtures
-    ├── test_cdr.py                 # CDR conversion tests
-    ├── test_chunker.py             # Chunker tests
-    ├── test_manifest.py            # Manifest tests
-    └── test_parsers.py             # Parser tests
+    ├── test_cdr.py                 # CDR conversion tests (22 tests)
+    ├── test_chunker.py             # Chunker tests (16 tests)
+    ├── test_evidence.py            # Evidence extraction tests (22 tests)
+    ├── test_manifest.py            # Manifest tests (16 tests)
+    ├── test_mcq_generator.py       # MCQ generator tests (22 tests)
+    └── test_parsers.py             # Parser tests (11 tests)
 ```
 
 ---
 
 ## Next Steps
 
-1. **Task 3.0: Implement MCQ generation with Gemini API**
-   - 3.1 `src/generate/prompts.py` — Slice-specific prompts (A/B/C)
-   - 3.2 `src/generate/evidence.py` — Gold evidence span extraction
-   - 3.3 `src/generate/mcq_generator.py` — Gemini API integration
-   - 3.4 `src/generate/pipeline.py` — Generation orchestration
-   - 3.5-3.6 Unit tests
+1. **Task 4.0: Implement validation pipeline**
+   - 4.1 `src/validate/rules.py` — Validation rules (SingleAnswer, EvidenceExists, Ambiguity, OptionsComplete)
+   - 4.2 `src/validate/validator.py` — Validator class with configurable rules
+   - 4.3 `src/validate/pipeline.py` — Validation orchestration
+   - 4.4 Unit tests
 
-2. **Task 4.0: Implement validation pipeline**
-3. **Task 5.0: Implement frozen context builder**
-4. **Task 6.0: Implement export + CLI**
+2. **Task 5.0: Implement frozen context builder**
+3. **Task 6.0: Implement export + CLI**
 
 ---
 
