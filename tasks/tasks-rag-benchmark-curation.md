@@ -93,12 +93,12 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 1.9 Create `tests/conftest.py` with shared fixtures (sample chunks, sample items, temp directories)
   - [x] 1.10 Verify setup: run `pip install -e .` and `pytest tests/` (should pass with no tests yet)
 
-- [ ] 2.0 Implement document ingestion pipeline
-  - [ ] 2.1 Create `src/ingest/cdr.py`:
+- [x] 2.0 Implement document ingestion pipeline
+  - [x] 2.1 Create `src/ingest/cdr.py`:
     - `CDRConverter` class with `to_cdr()` method
     - Generate stable `doc_id` from file path hash
     - Generate stable `chunk_id` as `{doc_id}_{index}`
-  - [ ] 2.2 Create `src/ingest/parsers.py`:
+  - [x] 2.2 Create `src/ingest/parsers.py`:
     - `BaseParser` abstract class with `parse(file_path) -> str` method
     - `TextParser` for `.txt` and `.md` files
     - `PDFParser` for `.pdf` files (extract text, preserve page refs)
@@ -106,34 +106,34 @@ Update the file after completing each sub-task, not just after completing an ent
     - `JSONParser` for `.json` files (flatten or stringify)
     - `HTMLParser` for `.html` files (strip tags, extract text)
     - `get_parser(file_path)` factory function
-  - [ ] 2.3 Create `src/ingest/chunker.py`:
+  - [x] 2.3 Create `src/ingest/chunker.py`:
     - `BaseChunker` abstract class with `chunk(text, metadata) -> list[CDRChunk]`
     - `FixedWindowChunker` (configurable token/char window with overlap)
     - `SemanticChunker` (paragraph-based splitting)
     - `TableAwareChunker` (preserve table boundaries, store `table_json`)
     - `get_chunker(strategy_name)` factory function
-  - [ ] 2.4 Create `src/ingest/manifest.py`:
+  - [x] 2.4 Create `src/ingest/manifest.py`:
     - `CorpusManifest` class to track ingested files
     - Store: `{doc_id: {path, checksum (SHA-256), timestamp, chunk_count}}`
     - Methods: `load()`, `save()`, `is_modified(file_path)`, `update(doc_id, metadata)`
     - Default path: `data/corpus_manifest.json`
-  - [ ] 2.5 Create `src/ingest/pipeline.py`:
+  - [x] 2.5 Create `src/ingest/pipeline.py`:
     - `IngestPipeline` class orchestrating parse → chunk → save
     - Support `--incremental` flag (skip unchanged files via manifest)
     - Output chunks to `data/chunks/{doc_id}.jsonl`
     - Update manifest after successful ingestion
-  - [ ] 2.6 Write `tests/test_parsers.py`:
+  - [x] 2.6 Write `tests/test_parsers.py`:
     - Test each parser with sample files
     - Test `get_parser()` factory
     - Test error handling for unsupported formats
-  - [ ] 2.7 Write `tests/test_chunker.py`:
+  - [x] 2.7 Write `tests/test_chunker.py`:
     - Test each chunking strategy
     - Test chunk_id stability
     - Test overlap handling
-  - [ ] 2.8 Write `tests/test_manifest.py`:
+  - [x] 2.8 Write `tests/test_manifest.py`:
     - Test manifest load/save
     - Test `is_modified()` with changed/unchanged files
-  - [ ] 2.9 Write `tests/test_cdr.py`:
+  - [x] 2.9 Write `tests/test_cdr.py`:
     - Test CDR conversion
     - Test doc_id and chunk_id generation stability
 

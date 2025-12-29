@@ -83,11 +83,48 @@ Building a universal benchmark curation system that converts arbitrary input doc
 - [x] Created `tests/conftest.py` with shared pytest fixtures
 - [x] Verified setup: `pip install -e ".[dev]"` and imports working
 
+### 7. Document Ingestion Pipeline (Task 2.0)
+- [x] Created `src/ingest/cdr.py`:
+  - `CDRConverter` class with `to_cdr()` method
+  - `generate_doc_id()` using SHA-256 hash of absolute path (12 hex chars)
+  - `generate_chunk_id()` as `{doc_id}_{index}`
+  - `get_source_type()` for file extension mapping
+- [x] Created `src/ingest/parsers.py`:
+  - `BaseParser` abstract class with `parse() -> ParseResult`
+  - `TextParser` for `.txt` and `.md` (UTF-8 text extraction)
+  - `PDFParser` for `.pdf` (pdfplumber, page refs, table extraction)
+  - `CSVParser` for `.csv` (pipe-delimited text, table structure)
+  - `JSONParser` for `.json` (recursive flattening to key: value format)
+  - `HTMLParser` for `.html` (BeautifulSoup, script/style stripping, table extraction)
+  - `get_parser()` factory function
+- [x] Created `src/ingest/chunker.py`:
+  - `BaseChunker` abstract class with `chunk(ParseResult) -> list[ChunkMetadata]`
+  - `FixedWindowChunker` (configurable size/overlap, page ref tracking)
+  - `SemanticChunker` (paragraph-based, merges small paragraphs)
+  - `TableAwareChunker` (preserves tables as separate chunks with table_json)
+  - `get_chunker()` factory function
+- [x] Created `src/ingest/manifest.py`:
+  - `CorpusManifest` class for incremental ingestion tracking
+  - SHA-256 file checksums for change detection
+  - Methods: `load()`, `save()`, `is_modified()`, `update()`, `remove()`
+- [x] Created `src/ingest/pipeline.py`:
+  - `IngestPipeline` class orchestrating parse → chunk → CDR → save
+  - Incremental mode (skip unchanged files via manifest)
+  - Dry-run mode support
+  - JSONL output to `data/chunks/{doc_id}.jsonl`
+  - `IngestStats` dataclass for run statistics
+- [x] Updated `src/ingest/__init__.py` with exports
+- [x] Created unit tests (71 tests total, all passing):
+  - `tests/test_parsers.py` - Parser tests (11 tests)
+  - `tests/test_chunker.py` - Chunker tests (16 tests)
+  - `tests/test_manifest.py` - Manifest tests (16 tests)
+  - `tests/test_cdr.py` - CDR conversion tests (22 tests)
+
 ---
 
 ## Current Status
 
-**No failures.** Task 1.0 complete. Ready to start Task 2.0.
+**No failures.** Task 2.0 complete. Ready to start Task 3.0.
 
 ---
 
@@ -119,7 +156,13 @@ agentic-eval-curator/
 │   ├── __init__.py
 │   ├── config.py                   # Config loading
 │   ├── models.py                   # Pydantic models
-│   ├── ingest/                     # (empty, Task 2.0)
+│   ├── ingest/
+│   │   ├── __init__.py             # Module exports
+│   │   ├── cdr.py                  # CDR conversion utilities
+│   │   ├── chunker.py              # Chunking strategies
+│   │   ├── manifest.py             # Corpus manifest for incremental ingestion
+│   │   ├── parsers.py              # Document parsers (PDF, TXT, CSV, JSON, HTML)
+│   │   └── pipeline.py             # Ingestion pipeline orchestration
 │   ├── generate/                   # (empty, Task 3.0)
 │   ├── validate/                   # (empty, Task 4.0)
 │   ├── frozen/                     # (empty, Task 5.0)
@@ -131,25 +174,27 @@ agentic-eval-curator/
 │
 └── tests/
     ├── __init__.py
-    └── conftest.py                 # Shared fixtures
+    ├── conftest.py                 # Shared fixtures
+    ├── test_cdr.py                 # CDR conversion tests
+    ├── test_chunker.py             # Chunker tests
+    ├── test_manifest.py            # Manifest tests
+    └── test_parsers.py             # Parser tests
 ```
 
 ---
 
 ## Next Steps
 
-1. **Task 2.0: Implement document ingestion pipeline**
-   - 2.1 `src/ingest/cdr.py` — CDRConverter class
-   - 2.2 `src/ingest/parsers.py` — PDF, TXT, MD, CSV, JSON, HTML parsers
-   - 2.3 `src/ingest/chunker.py` — Fixed window, semantic, table-aware chunking
-   - 2.4 `src/ingest/manifest.py` — Corpus manifest for incremental ingestion
-   - 2.5 `src/ingest/pipeline.py` — Orchestration
-   - 2.6-2.9 Unit tests
+1. **Task 3.0: Implement MCQ generation with Gemini API**
+   - 3.1 `src/generate/prompts.py` — Slice-specific prompts (A/B/C)
+   - 3.2 `src/generate/evidence.py` — Gold evidence span extraction
+   - 3.3 `src/generate/mcq_generator.py` — Gemini API integration
+   - 3.4 `src/generate/pipeline.py` — Generation orchestration
+   - 3.5-3.6 Unit tests
 
-2. **Task 3.0: Implement MCQ generation**
-3. **Task 4.0: Implement validation**
-4. **Task 5.0: Implement frozen context builder**
-5. **Task 6.0: Implement export + CLI**
+2. **Task 4.0: Implement validation pipeline**
+3. **Task 5.0: Implement frozen context builder**
+4. **Task 6.0: Implement export + CLI**
 
 ---
 
