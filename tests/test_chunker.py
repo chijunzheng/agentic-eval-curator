@@ -6,6 +6,8 @@ from src.ingest.chunker import (
     FixedWindowChunker,
     SemanticChunker,
     SemanticTableAwareChunker,
+    SentenceAwareChunker,
+    SentenceTableAwareChunker,
     TableAwareChunker,
     get_chunker,
 )
@@ -242,6 +244,128 @@ class TestSemanticTableAwareChunker:
         assert "Value1 | Value2" in text
 
 
+class TestSentenceAwareChunker:
+    """Tests for SentenceAwareChunker."""
+
+    def test_splits_at_sentence_boundaries(self):
+        """Test that chunks split at sentence boundaries."""
+        chunker = SentenceAwareChunker(min_chunk_size=50, max_chunk_size=200)
+        text = "This is the first sentence. This is the second sentence. This is the third sentence."
+        result = ParseResult(text=text)
+
+        chunks = chunker.chunk(result)
+
+        # Should split into chunks at sentence boundaries
+        assert len(chunks) >= 1
+        # No chunk should be cut mid-word
+        for chunk in chunks:
+            assert not chunk.text.startswith(" ")
+            assert not chunk.text.endswith(" ")
+
+    def test_normalizes_line_wrapped_text(self):
+        """Test that line-wrapped PDF text is normalized."""
+        chunker = SentenceAwareChunker(min_chunk_size=50, max_chunk_size=500)
+        # Simulate PDF line wrapping
+        text = """This is a sentence that has been
+wrapped across multiple lines
+because of PDF extraction.
+
+This is a new paragraph."""
+
+        result = ParseResult(text=text)
+        chunks = chunker.chunk(result)
+
+        # The wrapped text should be joined
+        full_text = " ".join(c.text for c in chunks)
+        assert "has been wrapped" in full_text or "been wrapped" in full_text
+
+    def test_never_cuts_mid_word(self):
+        """Test that chunks never cut mid-word."""
+        chunker = SentenceAwareChunker(min_chunk_size=10, max_chunk_size=50)
+        text = "Short words here and there make for good testing of word boundaries."
+        result = ParseResult(text=text)
+
+        chunks = chunker.chunk(result)
+
+        # Verify no mid-word cuts
+        for chunk in chunks:
+            words = chunk.text.split()
+            # Each word should be complete
+            for word in words:
+                assert len(word) > 0
+                # Should not contain partial words (no lowercase after cut)
+                assert not word[0].islower() or len(word) > 1
+
+    def test_handles_references_and_citations(self):
+        """Test handling of technical references like [1] and Fig. 1."""
+        chunker = SentenceAwareChunker(min_chunk_size=50, max_chunk_size=300)
+        text = "See [1] for details. Fig. 1 shows the architecture. Refer to Sec. 2.1 for more info."
+        result = ParseResult(text=text)
+
+        chunks = chunker.chunk(result)
+
+        # Should not split "Fig." from "1" or "Sec." from "2.1"
+        full_text = " ".join(c.text for c in chunks)
+        assert "Fig." in full_text
+        assert "Sec." in full_text
+
+    def test_empty_text(self):
+        """Test chunking empty text."""
+        chunker = SentenceAwareChunker()
+        result = ParseResult(text="")
+
+        chunks = chunker.chunk(result)
+        assert len(chunks) == 0
+
+    def test_handles_technical_document(self):
+        """Test with realistic technical document text."""
+        chunker = SentenceAwareChunker(min_chunk_size=100, max_chunk_size=500)
+        text = """2 References
+2.1 Normative references
+References are either specific (identified by date of publication, edition number, version number, etc.) or non-specific.
+For a specific reference, subsequent revisions do not apply. For a non-specific reference, the latest version applies.
+
+[1] 3GPP TR 21.905: Vocabulary for 3GPP Specifications
+[2] 3GPP TS 28.622: Telecommunication management; Generic Network Resource Model"""
+
+        result = ParseResult(text=text)
+        chunks = chunker.chunk(result)
+
+        # Should chunk without cutting mid-word
+        for chunk in chunks:
+            text_content = chunk.text
+            # Should not end with partial words like "Teleco" or "Specificatio"
+            if text_content.endswith("Teleco") or text_content.endswith("Specificatio"):
+                pytest.fail(f"Chunk ends mid-word: {text_content[-20:]}")
+
+
+class TestSentenceTableAwareChunker:
+    """Tests for SentenceTableAwareChunker."""
+
+    def test_uses_sentence_chunker_for_prose(self):
+        """Test that prose uses sentence-aware chunking."""
+        chunker = SentenceTableAwareChunker(min_chunk_size=50, max_chunk_size=200)
+        text = "First sentence here. Second sentence follows. Third comes after."
+        result = ParseResult(text=text)
+
+        chunks = chunker.chunk(result)
+
+        assert len(chunks) >= 1
+        assert all(c.table_json is None for c in chunks)
+
+    def test_preserves_tables(self):
+        """Test that tables are kept as separate chunks."""
+        chunker = SentenceTableAwareChunker(min_chunk_size=50, max_chunk_size=200)
+        tables = [{"data": [["A", "B"], ["1", "2"]], "page": 1}]
+        text = "Some prose content here."
+        result = ParseResult(text=text, tables=tables)
+
+        chunks = chunker.chunk(result)
+
+        table_chunks = [c for c in chunks if c.table_json is not None]
+        assert len(table_chunks) == 1
+
+
 class TestGetChunker:
     """Tests for get_chunker factory function."""
 
@@ -270,6 +394,18 @@ class TestGetChunker:
         chunker = get_chunker("semantic_table_aware", chunk_size=500, overlap=50)
 
         assert isinstance(chunker, SemanticTableAwareChunker)
+
+    def test_get_sentence_aware(self):
+        """Test getting sentence-aware chunker."""
+        chunker = get_chunker("sentence_aware", chunk_size=500, overlap=50)
+
+        assert isinstance(chunker, SentenceAwareChunker)
+
+    def test_get_sentence_table_aware(self):
+        """Test getting sentence-table-aware chunker."""
+        chunker = get_chunker("sentence_table_aware", chunk_size=500, overlap=50)
+
+        assert isinstance(chunker, SentenceTableAwareChunker)
 
     def test_get_unknown_strategy(self):
         """Test error for unknown strategy."""

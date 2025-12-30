@@ -40,6 +40,9 @@ dev = [
     "pytest-cov==6.0.0",
     "ruff==0.8.3",
 ]
+unstructured = [
+    "unstructured[all-docs]>=0.16.0",
+]
 
 [project.scripts]
 rag-bench = "src.cli:main"

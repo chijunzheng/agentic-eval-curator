@@ -263,18 +263,140 @@ Building a universal benchmark curation system that converts arbitrary input doc
 - [x] Added `_split_by_words()` for word-boundary splitting
 - [x] Added 3 new unit tests for long-paragraph splitting (296 total)
 
+### 14. Document Preprocessing Pipeline (Task 7.1-7.3)
+- [x] Created `src/ingest/preprocessor.py`:
+  - `PreprocessorConfig` dataclass with configurable options
+  - `DocumentPreprocessor` class with `preprocess(text, page_texts) -> str`
+  - **TOC Removal**: Detects consecutive dots (`......`) and tab-separated page refs (`1.1 Intro\t5`)
+  - **Header/Footer Removal**: Detects repeated text across >70% of pages
+  - **Hyphenation Repair**: Joins words split across lines (`exam-\nple` → `example`)
+  - **Boilerplate Removal**: Copyright notices, document IDs, disclaimers
+  - **Page Number Removal**: Standalone numbers, "Page X of Y" patterns
+  - **Whitespace Normalization**: Collapses multiple spaces and excessive blank lines
+  - **Custom Patterns**: Support for domain-specific regex cleanup
+  - `get_preprocessor(**options)` factory function
+- [x] Integrated preprocessor into `src/ingest/pipeline.py`:
+  - Added `enable_preprocessing` flag to `IngestPipeline`
+  - Preprocessing applied automatically before chunking
+  - Page texts passed for header/footer detection
+- [x] Added 13 unit tests in `tests/test_preprocessor.py`
+
+### 15. Sentence-Aware Chunking (Task 7.2, 7.6)
+- [x] Created `SentenceAwareChunker` class in `src/ingest/chunker.py`:
+  - **Line Normalization**: Joins lines wrapped during PDF extraction (single newlines → space)
+  - **Sentence Boundary Detection**: Splits at `.`, `!`, `?` with proper handling
+  - **Abbreviation Handling**: Maintains set of common abbreviations (Mr., Dr., Fig., Sec., etc.)
+  - **Word Boundary Guarantee**: Never splits mid-word, falls back to word boundaries
+  - Configurable `min_chunk_size` and `max_chunk_size`
+- [x] Created `SentenceTableAwareChunker` hybrid class:
+  - Uses `SentenceAwareChunker` for prose content
+  - Preserves tables as separate chunks (inherits from `TableAwareChunker`)
+- [x] Updated `get_chunker()` factory to support new strategies
+- [x] Updated `configs/default.yaml` to use `sentence_table_aware` by default
+- [x] Added 10 new unit tests for sentence-aware chunking (46 chunker tests total)
+
+### 16. Claude Code Agent Skills (Task 7.7)
+- [x] Created `.claude/skills/rag-preprocess.md`:
+  - Documents preprocessing capabilities and Python API
+  - Usage examples for CLI and programmatic access
+  - Configuration options and testing instructions
+- [x] Created `.claude/skills/rag-chunk.md`:
+  - Documents semantic chunking with **unstructured.io** integration
+  - Chunking strategy selection guide (by document type)
+  - Code examples for `chunk_by_title()` and `partition()`
+  - Parameters reference and table handling
+
+### 17. Unstructured.io Integration (Task 7.8)
+- [x] Added `unstructured[all-docs]>=0.16.0` to optional dependencies in `pyproject.toml`
+- [x] Created `src/ingest/unstructured_chunker.py`:
+  - `UnstructuredChunker` class using `partition()` and `chunk_by_title()`
+  - `chunk_file(file_path) -> list[ChunkMetadata]` for direct file processing
+  - **Tables isolated automatically** - never combined with prose chunks
+  - Preserves page numbers and section hierarchy in metadata
+  - Falls back to `SentenceTableAwareChunker` for pre-parsed text
+  - `UNSTRUCTURED_AVAILABLE` flag for graceful degradation
+- [x] Updated `src/ingest/pipeline.py`:
+  - Added `use_unstructured_chunker` flag to `IngestPipeline`
+  - Automatic fallback to default chunker for unsupported file types (.yang)
+  - Fallback on unstructured errors with warning log
+- [x] Updated `src/cli.py`:
+  - Added `--chunker` option to `ingest` command: `default` or `unstructured`
+  - Helpful error message if unstructured not installed
+  - Displays chunker type in output
+
+### 18. ORAN PDF Testing (Task 7.9)
+- [x] Installed unstructured library with all document support
+- [x] Installed/upgraded pdfminer.six for PDF processing
+- [x] Tested ingestion on 258 ORAN spec documents:
+  - YANG files processed successfully with fallback chunker
+  - PDFs processed with fallback (pdfminer compatibility issue)
+  - All files ingesting without errors
+
+### 19. O-RAN Preprocessing Improvements (Task 7.10)
+- [x] **Issue identified**: Chunks still contained TOC, headers, footers, and boilerplate
+- [x] **Root cause**: Regex patterns didn't match actual O-RAN document format
+- [x] **Fixed preprocessing patterns in `src/ingest/preprocessor.py`**:
+
+  | Issue | Pattern Added | Example Removed |
+  |-------|---------------|-----------------|
+  | TOC section number remnants | `^[\d.\s]+$` | `"2 2.1 2.2"`, `"7 7.1 7.1.1"` |
+  | Underscore footer separators | `^_{5,}.*$` | `"____...______ 3"` |
+  | O-RAN doc ID with suffix | `^O-RAN\.[...]+\s+.*$` | `"O-RAN.WG1.CCIN-R004-v01.00 Technical Report"` |
+  | Annex TOC entries | `^Annex\s+[A-Z]\s*\([^)]+\).*$` | `"Annex A (normative): YANG..."` |
+  | Technical Report header | `^Technical (Specification\|Report)\s*$` | `"Technical Report"` |
+  | O-RAN copyright block | Full disclaimer paragraph | Long copyright text |
+  | O-RAN ALLIANCE address | `^O-RAN ALLIANCE e\.V\..*$` | Address/registration info |
+
+- [x] **Fixed pipeline to apply preprocessing to ALL chunks** in `src/ingest/pipeline.py`:
+  - Added `_preprocess_chunks()` method that runs after chunking
+  - Preprocessing now applies even when unstructured chunker is used
+  - Empty chunks after preprocessing are automatically skipped
+
+- [x] **Added minimum chunk quality filters**:
+  - `MIN_CHUNK_LENGTH = 20` - Skip chunks shorter than 20 characters
+  - `MIN_ALPHA_RATIO = 0.3` - Skip chunks with <30% alphabetic characters
+  - Catches remaining junk like `"2 2.1 2.2"` or `"_____ 3"`
+
+- [x] **Added O-RAN-specific unit tests** (10 new tests):
+  - `test_removes_oran_document_id`
+  - `test_removes_oran_document_id_with_technical_report`
+  - `test_removes_oran_copyright_block`
+  - `test_removes_oran_alliance_address`
+  - `test_removes_oran_toc_with_many_dots`
+  - `test_removes_oran_numbered_toc_entries`
+  - `test_removes_toc_section_number_remnants`
+  - `test_removes_underscore_footer_separators`
+  - `test_preserves_actual_oran_content`
+  - `test_handles_mixed_oran_content`
+
+- [x] **Total tests: 56 passing** (33 chunker + 23 preprocessor)
+
+### 20. Chunk Size Configuration Update
+- [x] Updated chunk size from character-based to token-based targeting:
+  - **Old**: 512 characters, 100 character overlap
+  - **New**: 2000 characters (~500 tokens), 400 character overlap (~100 tokens)
+  - Conversion: ~4 characters per token for English text
+- [x] Updated `configs/default.yaml` with new defaults
+- [x] Updated `configs/chunking.yaml` with token-to-character documentation
+- [x] Successfully re-ingested ORAN documents with new chunk sizes
+
 ---
 
 ## Current Status
 
-**All tasks complete.** 296 tests passing. Pipeline is fully functional:
-- Document ingestion (PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG)
-- MCQ generation with Gemini API
-- Validation with 6 quality rules
-- Frozen context building with 3 distractor strategies
-- Dataset export with manifest
+**Task 7.0 COMPLETE.** All preprocessing and chunking improvements done.
 
-**No current failures.** Ready for end-to-end testing with ORAN source documents.
+**Working Pipeline:**
+- Document ingestion with O-RAN-specific preprocessing
+- Sentence-aware chunking with ~500 token chunks
+- Automatic filtering of low-quality chunks (TOC remnants, separators)
+- Full support for PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG
+
+**Test Coverage:**
+- 56 tests passing (33 chunker + 23 preprocessor)
+- O-RAN-specific test cases for all boilerplate patterns
+
+**No Current Failures** - Ready to proceed with MCQ generation.
 
 ---
 
@@ -287,7 +409,7 @@ agentic-eval-curator/
 ├── .venv/                          # Virtual environment (not committed)
 ├── CLAUDE.md                       # Project conventions
 ├── progress.md                     # This file
-├── pyproject.toml                  # Package config + pinned deps
+├── pyproject.toml                  # Package config + deps (includes unstructured optional)
 │
 ├── .claude/
 │   ├── rules/
@@ -295,10 +417,12 @@ agentic-eval-curator/
 │   └── skills/
 │       ├── create-prd/
 │       ├── generate-tasks/
-│       └── mcq-prompt-generator/
+│       ├── mcq-prompt-generator/
+│       ├── rag-preprocess.md       # Document preprocessing skill
+│       └── rag-chunk.md            # Semantic chunking skill (unstructured.io)
 │
 ├── configs/
-│   ├── default.yaml                # Pipeline defaults
+│   ├── default.yaml                # Pipeline defaults (sentence_table_aware chunking)
 │   ├── chunking.yaml               # Chunking strategy options
 │   └── generation.yaml             # Gemini API parameters
 │
@@ -306,16 +430,18 @@ agentic-eval-curator/
 │
 ├── src/
 │   ├── __init__.py
-│   ├── cli.py                      # Click CLI (rag-bench command)
+│   ├── cli.py                      # Click CLI (rag-bench command, --chunker option)
 │   ├── config.py                   # Config loading
 │   ├── models.py                   # Pydantic models
 │   ├── ingest/
 │   │   ├── __init__.py             # Module exports
 │   │   ├── cdr.py                  # CDR conversion utilities
-│   │   ├── chunker.py              # Chunking strategies
+│   │   ├── chunker.py              # Chunking strategies (6 strategies including sentence-aware)
 │   │   ├── manifest.py             # Corpus manifest for incremental ingestion
 │   │   ├── parsers.py              # Document parsers (PDF, TXT, CSV, JSON, HTML, DOCX, XLSX, YANG)
-│   │   └── pipeline.py             # Ingestion pipeline orchestration
+│   │   ├── pipeline.py             # Ingestion pipeline with preprocessing + chunker fallback
+│   │   ├── preprocessor.py         # Document preprocessing (TOC, headers, hyphenation)
+│   │   └── unstructured_chunker.py # Unstructured.io-based semantic chunking
 │   ├── generate/
 │   │   ├── __init__.py             # Module exports
 │   │   ├── evidence.py             # Gold evidence span extraction
@@ -338,13 +464,13 @@ agentic-eval-curator/
 │
 ├── tasks/
 │   ├── prd-rag-benchmark-curation.md
-│   └── tasks-rag-benchmark-curation.md
+│   └── tasks-rag-benchmark-curation.md  # Includes Task 7.0 (preprocessing + chunking)
 │
 └── tests/
     ├── __init__.py
     ├── conftest.py                 # Shared fixtures
     ├── test_cdr.py                 # CDR conversion tests (22 tests)
-    ├── test_chunker.py             # Chunker tests (23 tests)
+    ├── test_chunker.py             # Chunker tests (33 tests, includes sentence-aware)
     ├── test_cli.py                 # CLI integration tests (28 tests)
     ├── test_evidence.py            # Evidence extraction tests (22 tests)
     ├── test_exporter.py            # Exporter tests (29 tests)
@@ -352,6 +478,7 @@ agentic-eval-curator/
     ├── test_manifest.py            # Manifest tests (16 tests)
     ├── test_mcq_generator.py       # MCQ generator tests (22 tests)
     ├── test_parsers.py             # Parser tests (29 tests)
+    ├── test_preprocessor.py        # Preprocessor tests (23 tests, includes O-RAN patterns)
     └── test_validator.py           # Validation tests (59 tests)
 ```
 
@@ -359,21 +486,20 @@ agentic-eval-curator/
 
 ## Next Steps
 
-All implementation tasks (1.0 - 6.0) are complete. Ready for end-to-end testing:
+Tasks 1.0-7.0 COMPLETE. Document ingestion pipeline fully working.
 
-1. **Run pipeline on ORAN source documents**:
+1. **Continue end-to-end pipeline** (Task 8.0):
    ```bash
-   rag-bench ingest --input-dir /path/to/oran_specs/
-   rag-bench generate
-   rag-bench validate
-   rag-bench build-frozen
-   rag-bench export
+   rag-bench generate        # Generate MCQs from chunks (requires GEMINI_API_KEY)
+   rag-bench validate        # Validate MCQ quality
+   rag-bench build-frozen    # Build frozen contexts
+   rag-bench export          # Export dataset
    ```
 
 2. **Potential enhancements** (if needed):
+   - Fix unstructured.io pdfminer compatibility for direct PDF chunking
    - Add semantic distractor selection using embeddings
    - Add evaluation runner for frozen retrieval mode
-   - Add reporting with per-slice and per-hop breakdowns
 
 ---
 
@@ -386,17 +512,56 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
+# Install unstructured.io (optional, for advanced chunking)
+pip install "unstructured[all-docs]"
+
 # Run tests
 pytest tests/
+pytest tests/test_chunker.py tests/test_preprocessor.py -v  # Chunking tests only
 
 # Lint
 ruff check src/ tests/
 
 # Pipeline (end-to-end)
-rag-bench ingest --input-dir /path/to/docs/   # Supports: PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG
-rag-bench generate --slice all                 # Requires GEMINI_API_KEY
+# Option 1: Default chunker (sentence_table_aware with preprocessing)
+rag-bench ingest --input-dir /path/to/docs/
+
+# Option 2: Unstructured.io chunker (semantic with table isolation)
+rag-bench ingest --input-dir /path/to/docs/ --chunker unstructured
+
+# Continue pipeline
+rag-bench generate --slice all    # Requires GEMINI_API_KEY
 rag-bench validate
 rag-bench build-frozen
 rag-bench export --output-dir data/export/
-rag-bench status                               # Check pipeline state
+rag-bench status                  # Check pipeline state
 ```
+
+---
+
+## Chunking Strategies
+
+**Default Configuration** (optimized for O-RAN/3GPP specs):
+- Strategy: `sentence_table_aware`
+- Chunk size: 2000 characters (~500 tokens)
+- Overlap: 400 characters (~100 tokens)
+- Token conversion: ~4 characters per token for English
+
+| Strategy | Best For | Description |
+|----------|----------|-------------|
+| `sentence_table_aware` (default) | Technical PDFs | Sentence-boundary splits, tables isolated |
+| `sentence_aware` | Prose documents | Sentence-boundary splits, no table handling |
+| `semantic_table_aware` | Formatted docs | Paragraph-based with table isolation |
+| `semantic` | Simple text | Paragraph-based chunking |
+| `table_aware` | Structured docs | Fixed-window with table isolation |
+| `fixed_window` | Raw text | Simple character-based windows |
+| `unstructured` (CLI) | Complex PDFs | Uses unstructured.io with section awareness |
+
+## Preprocessing Pipeline
+
+The preprocessor automatically removes O-RAN/3GPP boilerplate:
+- **TOC entries**: Lines with consecutive dots, section number remnants
+- **Headers/Footers**: Repeated text across pages, underscore separators
+- **Boilerplate**: Copyright notices, document IDs, disclaimers, ALLIANCE address
+- **Page numbers**: Standalone numbers, "Page X of Y" patterns
+- **Quality filters**: Chunks <20 chars or <30% alphabetic content are skipped

@@ -6,10 +6,13 @@
 - `src/__init__.py` - Package initialization
 - `src/cli.py` - Main CLI entry point with Click commands
 - `src/ingest/__init__.py` - Ingestion module initialization
-- `src/ingest/parsers.py` - Document parsers for PDF, TXT, MD, CSV, JSON, HTML
-- `src/ingest/chunker.py` - Chunking strategies (fixed window, semantic, table-aware)
+- `src/ingest/parsers.py` - Document parsers for PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG
+- `src/ingest/chunker.py` - Chunking strategies (fixed window, semantic, table-aware, sentence-aware)
+- `src/ingest/preprocessor.py` - Document preprocessing (TOC removal, header/footer, hyphenation repair)
+- `src/ingest/unstructured_chunker.py` - Unstructured.io-based semantic chunking (optional)
 - `src/ingest/cdr.py` - Canonical Document Representation dataclass and utilities
 - `src/ingest/manifest.py` - Corpus manifest management for incremental ingestion
+- `src/ingest/pipeline.py` - Ingestion pipeline orchestrating parse → preprocess → chunk → save
 - `src/generate/__init__.py` - Generation module initialization
 - `src/generate/mcq_generator.py` - MCQ generation logic using Gemini API
 - `src/generate/prompts.py` - Prompt templates for each slice (A/B/C)
@@ -29,7 +32,8 @@
 - `tests/__init__.py` - Test package initialization
 - `tests/conftest.py` - Pytest fixtures and shared test utilities
 - `tests/test_parsers.py` - Unit tests for document parsers
-- `tests/test_chunker.py` - Unit tests for chunking strategies
+- `tests/test_chunker.py` - Unit tests for chunking strategies (including sentence-aware)
+- `tests/test_preprocessor.py` - Unit tests for document preprocessing
 - `tests/test_cdr.py` - Unit tests for CDR conversion
 - `tests/test_manifest.py` - Unit tests for corpus manifest
 - `tests/test_mcq_generator.py` - Unit tests for MCQ generation (mocked API)
@@ -37,6 +41,10 @@
 - `tests/test_frozen_builder.py` - Unit tests for frozen context builder
 - `tests/test_exporter.py` - Unit tests for export functionality
 - `tests/test_cli.py` - Integration tests for CLI commands
+
+### Agent Skills
+- `.claude/skills/rag-preprocess.md` - Document preprocessing skill
+- `.claude/skills/rag-chunk.md` - Semantic chunking skill with unstructured.io
 
 ### Configuration Files
 - `configs/default.yaml` - Default pipeline configuration
@@ -253,3 +261,59 @@ Update the file after completing each sub-task, not just after completing an ent
     - Tests verify output files exist and are valid JSONL
   - [x] 6.8 Update `CLAUDE.md` Commands section with actual CLI commands
   - [x] 6.9 Update `progress.md` with implementation status
+
+- [ ] 7.0 Implement RAG preprocessing and unstructured.io chunking
+  - [x] 7.1 Create `src/ingest/preprocessor.py`:
+    - `PreprocessorConfig` dataclass with options (remove_toc, remove_headers_footers, repair_hyphenation, remove_page_numbers, remove_boilerplate, normalize_whitespace, custom_patterns)
+    - `DocumentPreprocessor` class with `preprocess(text, page_texts) -> str`
+    - TOC removal: detect consecutive dots (`......`), tab-separated page refs (`1.1 Intro\t5`)
+    - Header/footer removal: detect repeated text across pages (>70% of pages)
+    - Hyphenation repair: join words split across lines (`exam-\nple` → `example`)
+    - Boilerplate removal: copyright notices, document IDs, disclaimers
+    - Page number removal: standalone numbers, "Page X of Y" patterns
+    - `get_preprocessor(**options)` factory function
+  - [x] 7.2 Create sentence-aware chunking in `src/ingest/chunker.py`:
+    - `SentenceAwareChunker` class:
+      - Normalize line-wrapped PDF text (join single newlines)
+      - Split at sentence boundaries (`.`, `!`, `?`) but not abbreviations (Fig., Sec., Mr., etc.)
+      - Never cut mid-word (word boundary fallback)
+      - Configurable min/max chunk sizes
+    - `SentenceTableAwareChunker` hybrid class:
+      - Use SentenceAwareChunker for prose
+      - Preserve tables as separate chunks
+  - [x] 7.3 Integrate preprocessor into `src/ingest/pipeline.py`:
+    - Add `enable_preprocessing` flag to `IngestPipeline`
+    - Apply preprocessing before chunking
+    - Pass page_texts for header/footer detection
+  - [x] 7.4 Update `configs/default.yaml`:
+    - Set default chunking strategy to `sentence_table_aware`
+  - [x] 7.5 Write `tests/test_preprocessor.py`:
+    - Test TOC removal (dots, tabs)
+    - Test header/footer detection
+    - Test hyphenation repair
+    - Test whitespace normalization
+    - Test custom patterns
+  - [x] 7.6 Add tests to `tests/test_chunker.py`:
+    - Test SentenceAwareChunker sentence boundary detection
+    - Test abbreviation handling (Fig., Sec., etc.)
+    - Test SentenceTableAwareChunker table preservation
+    - Test no mid-word cuts
+  - [x] 7.7 Create Claude Code agent skills:
+    - `.claude/skills/rag-preprocess.md` - Document preprocessing skill
+    - `.claude/skills/rag-chunk.md` - Semantic chunking skill with unstructured.io
+  - [x] 7.8 Add unstructured.io integration:
+    - Add `unstructured[all-docs]` to optional dependencies in `pyproject.toml`
+    - Create `src/ingest/unstructured_chunker.py`:
+      - `UnstructuredChunker` class using `partition()` and `chunk_by_title()`
+      - `chunk_file(file_path) -> list[ChunkMetadata]` method for direct file processing
+      - Tables isolated automatically (never combined with prose)
+      - Preserve page numbers and section hierarchy in metadata
+    - Add `--chunker unstructured` CLI option to `ingest` command
+  - [ ] 7.9 Test with ORAN PDFs:
+    - Run ingestion on ORAN specs directory
+    - Verify chunks are not cut mid-word
+    - Verify tables are preserved as separate chunks
+    - Verify TOC and boilerplate are removed
+  - [ ] 7.10 Update documentation:
+    - Update `CLAUDE.md` with new preprocessing options
+    - Update `progress.md` with implementation status

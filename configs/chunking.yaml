@@ -1,55 +1,54 @@
 # Chunking Strategy Configuration
 # ================================
 # This file shows available chunking options for the ingestion pipeline.
+#
+# Token-to-character conversion: ~4 characters per token for English text
+# - 500 tokens ≈ 2000 characters
+# - 100 tokens ≈ 400 characters
 
 # Available strategies:
 # - fixed_window: Split text at fixed character intervals
 # - semantic: Split by paragraphs, preserving logical boundaries
 # - table_aware: Preserve tables + fixed window for prose
-# - semantic_table_aware: Preserve tables + semantic chunking for prose (RECOMMENDED for specs)
+# - semantic_table_aware: Preserve tables + semantic chunking for prose
+# - sentence_aware: Split at sentence boundaries (best for prose)
+# - sentence_table_aware: Sentence-aware + table preservation (RECOMMENDED for specs)
 
 chunking:
   # Strategy name
-  strategy: semantic_table_aware
+  strategy: sentence_table_aware
 
-  # Target chunk size in characters
-  # Recommended: 256-1024 for most use cases
-  chunk_size: 512
+  # Target chunk size in characters (~500 tokens)
+  chunk_size: 2000
 
-  # Overlap between chunks in characters
-  # For semantic strategies, this sets min_chunk_size
-  # Recommended: 10-20% of chunk_size
-  chunk_overlap: 50
+  # Overlap between chunks in characters (~100 tokens)
+  # For semantic/sentence strategies, this sets min_chunk_size
+  chunk_overlap: 400
 
 # Example configurations for different use cases:
 
-# --- Small chunks for fine-grained retrieval ---
+# --- Small chunks for fine-grained retrieval (~128 tokens) ---
 # chunking:
 #   strategy: fixed_window
-#   chunk_size: 256
-#   chunk_overlap: 25
+#   chunk_size: 512
+#   chunk_overlap: 50
 
-# --- Larger chunks for more context ---
+# --- Medium chunks (~256 tokens) ---
 # chunking:
-#   strategy: fixed_window
+#   strategy: sentence_aware
 #   chunk_size: 1024
-#   chunk_overlap: 100
+#   chunk_overlap: 200
 
-# --- Paragraph-based semantic chunking ---
+# --- Large chunks for more context (~500 tokens) ---
 # chunking:
-#   strategy: semantic
-#   chunk_size: 512
-#   chunk_overlap: 50
+#   strategy: sentence_table_aware
+#   chunk_size: 2000
+#   chunk_overlap: 400
 
-# --- Table-aware with fixed window (legacy) ---
-# chunking:
-#   strategy: table_aware
-#   chunk_size: 512
-#   chunk_overlap: 50
-
-# --- RECOMMENDED: Semantic + Table-aware for 3GPP/O-RAN specs ---
+# --- RECOMMENDED: Sentence-aware + Table-aware for 3GPP/O-RAN specs ---
 # Best for documents with both narrative prose and data tables
+# Uses ~500 tokens per chunk with ~100 token overlap
 # chunking:
-#   strategy: semantic_table_aware
-#   chunk_size: 512
-#   chunk_overlap: 50
+#   strategy: sentence_table_aware
+#   chunk_size: 2000
+#   chunk_overlap: 400

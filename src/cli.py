@@ -47,6 +47,12 @@ def main():
     help="Path to YAML configuration file.",
 )
 @click.option(
+    "--chunker",
+    type=click.Choice(["default", "unstructured"]),
+    default="default",
+    help="Chunking backend: 'default' (built-in) or 'unstructured' (unstructured.io).",
+)
+@click.option(
     "--incremental",
     is_flag=True,
     default=False,
@@ -67,6 +73,7 @@ def main():
 def ingest(
     input_dir: Path,
     config: str | None,
+    chunker: str,
     incremental: bool,
     dry_run: bool,
     seed: int | None,
@@ -76,7 +83,10 @@ def ingest(
     Parses documents from INPUT_DIR, splits them into chunks, and saves
     as JSONL files in data/chunks/.
 
-    Supported formats: PDF, TXT, MD, CSV, JSON, HTML
+    Supported formats: PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG
+
+    Use --chunker unstructured for semantic chunking with unstructured.io
+    (requires: pip install 'unstructured[all-docs]')
     """
     from src.ingest.pipeline import IngestPipeline
 
@@ -85,9 +95,26 @@ def ingest(
         overrides["seed"] = seed
 
     cfg = get_config(config, overrides if overrides else None)
-    pipeline = IngestPipeline(cfg)
+
+    # Determine chunker type
+    use_unstructured = chunker == "unstructured"
+    if use_unstructured:
+        try:
+            from src.ingest.unstructured_chunker import UNSTRUCTURED_AVAILABLE
+            if not UNSTRUCTURED_AVAILABLE:
+                raise ImportError()
+        except ImportError:
+            click.echo(
+                "Error: unstructured library not installed.\n"
+                "Install with: pip install 'unstructured[all-docs]'",
+                err=True,
+            )
+            sys.exit(1)
+
+    pipeline = IngestPipeline(cfg, use_unstructured_chunker=use_unstructured)
 
     click.echo(f"Ingesting documents from {input_dir}")
+    click.echo(f"Chunker: {'unstructured.io' if use_unstructured else cfg.chunking.strategy}")
     if incremental:
         click.echo("Incremental mode: skipping unchanged files")
     if dry_run:

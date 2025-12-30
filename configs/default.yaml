@@ -3,9 +3,13 @@
 data_dir: data
 
 chunking:
-  strategy: semantic_table_aware
-  chunk_size: 512
-  chunk_overlap: 50
+  # Options: fixed_window, semantic, table_aware, semantic_table_aware, sentence_aware, sentence_table_aware
+  # sentence_table_aware is best for PDFs with technical prose and tables
+  strategy: sentence_table_aware
+  # ~500 tokens (1 token ≈ 4 chars for English)
+  chunk_size: 2000
+  # ~100 tokens overlap
+  chunk_overlap: 400
 
 generation:
   model: gemini-2.5-flash
