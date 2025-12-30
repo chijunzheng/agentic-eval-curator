@@ -122,7 +122,7 @@ class FixedWindowChunker(BaseChunker):
 
 
 class SemanticChunker(BaseChunker):
-    """Paragraph-based semantic chunker."""
+    """Paragraph-based semantic chunker with sentence-boundary fallback."""
 
     def __init__(self, min_chunk_size: int = 100, max_chunk_size: int = 1000):
         """Initialize semantic chunker.
@@ -136,6 +136,9 @@ class SemanticChunker(BaseChunker):
 
     def chunk(self, parse_result: ParseResult) -> list[ChunkMetadata]:
         """Split text by paragraphs, merging small ones.
+
+        For paragraphs that exceed max_chunk_size, splits at sentence
+        boundaries. Falls back to word boundaries if needed.
 
         Args:
             parse_result: Parsed document result.
@@ -151,10 +154,18 @@ class SemanticChunker(BaseChunker):
         paragraphs = re.split(r"\n\n+", text)
         paragraphs = [p.strip() for p in paragraphs if p.strip()]
 
+        # Expand oversized paragraphs into smaller pieces
+        expanded = []
+        for para in paragraphs:
+            if len(para) > self.max_chunk_size:
+                expanded.extend(self._split_long_paragraph(para))
+            else:
+                expanded.append(para)
+
         chunks = []
         current_chunk = ""
 
-        for para in paragraphs:
+        for para in expanded:
             # If adding this paragraph exceeds max, save current and start new
             if current_chunk and len(current_chunk) + len(para) + 2 > self.max_chunk_size:
                 if current_chunk.strip():
@@ -183,6 +194,94 @@ class SemanticChunker(BaseChunker):
                 chunks.append(ChunkMetadata(text=current_chunk.strip()))
 
         return chunks
+
+    def _split_long_paragraph(self, para: str) -> list[str]:
+        """Split an oversized paragraph at sentence or word boundaries.
+
+        Args:
+            para: Paragraph text that exceeds max_chunk_size.
+
+        Returns:
+            List of smaller text segments.
+        """
+        # Try splitting by sentences first (period/exclaim/question + space)
+        sentences = re.split(r'(?<=[.!?])\s+', para)
+
+        if len(sentences) > 1:
+            # Merge sentences into chunks up to max_chunk_size
+            return self._merge_segments(sentences, "\n")
+
+        # If no sentence boundaries, try splitting by newlines (e.g., TOC entries)
+        lines = para.split("\n")
+        if len(lines) > 1:
+            return self._merge_segments(lines, "\n")
+
+        # Last resort: split by words at max_chunk_size boundaries
+        return self._split_by_words(para)
+
+    def _merge_segments(self, segments: list[str], separator: str) -> list[str]:
+        """Merge segments into chunks respecting max_chunk_size.
+
+        Args:
+            segments: List of text segments (sentences or lines).
+            separator: Separator to use when joining.
+
+        Returns:
+            List of merged chunks.
+        """
+        result = []
+        current = ""
+
+        for seg in segments:
+            seg = seg.strip()
+            if not seg:
+                continue
+
+            if not current:
+                current = seg
+            elif len(current) + len(sep := separator) + len(seg) <= self.max_chunk_size:
+                current += sep + seg
+            else:
+                if current:
+                    result.append(current)
+                # If single segment exceeds max, split it further
+                if len(seg) > self.max_chunk_size:
+                    result.extend(self._split_by_words(seg))
+                    current = ""
+                else:
+                    current = seg
+
+        if current:
+            result.append(current)
+
+        return result
+
+    def _split_by_words(self, text: str) -> list[str]:
+        """Split text by words, respecting max_chunk_size.
+
+        Args:
+            text: Text to split.
+
+        Returns:
+            List of chunks split at word boundaries.
+        """
+        words = text.split()
+        result = []
+        current = ""
+
+        for word in words:
+            if not current:
+                current = word
+            elif len(current) + 1 + len(word) <= self.max_chunk_size:
+                current += " " + word
+            else:
+                result.append(current)
+                current = word
+
+        if current:
+            result.append(current)
+
+        return result
 
 
 class TableAwareChunker(BaseChunker):

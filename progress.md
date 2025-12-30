@@ -226,16 +226,55 @@ Building a universal benchmark curation system that converts arbitrary input doc
   - `tests/test_cli.py` - CLI integration tests (28 tests)
 - [x] Updated `CLAUDE.md` with actual CLI commands
 
+### 12. Additional File Format Support (ORAN Docs)
+- [x] Added `DOCX`, `XLSX`, `YANG` to `SourceType` enum in `src/models.py`
+- [x] Added dependencies to `pyproject.toml`:
+  - `python-docx==1.1.2` for Microsoft Word documents
+  - `openpyxl==3.1.5` for Microsoft Excel spreadsheets
+- [x] Created `DocxParser` class in `src/ingest/parsers.py`:
+  - Extracts paragraphs and tables from Word documents
+  - Preserves table structure with headers
+  - Appends table text representation for searchability
+- [x] Created `XlsxParser` class in `src/ingest/parsers.py`:
+  - Multi-sheet support with sheet name headers
+  - Extracts data as pipe-delimited text
+  - Stores table structure per sheet
+  - Skips empty rows automatically
+- [x] Created `YangParser` class in `src/ingest/parsers.py`:
+  - Parses YANG data model files (RFC 6020, RFC 7950)
+  - Extracts metadata: module name, namespace, prefix, organization, description
+  - Prepends structured header to raw YANG content
+- [x] Registered new parsers in `_PARSERS` registry
+- [x] Added unit tests (16 new tests, 293 total):
+  - `TestDocxParser` - 3 tests (paragraphs, tables, empty docs)
+  - `TestXlsxParser` - 3 tests (single sheet, multiple sheets, empty rows)
+  - `TestYangParser` - 3 tests (module, submodule, minimal content)
+  - `TestGetParser` - 3 tests (docx, xlsx, yang factory functions)
+- [x] Pushed to remote: `origin/feature/rag-benchmark-curation`
+
+### 13. Fixed SemanticChunker Mid-Word Cuts
+- [x] **Issue**: Chunks were being cut mid-word/mid-sentence even with semantic chunking
+- [x] **Root cause**: `SemanticChunker` didn't handle paragraphs exceeding `max_chunk_size`
+- [x] **Fix**: Added `_split_long_paragraph()` method with fallback hierarchy:
+  1. Split at sentence boundaries (`.!?` followed by space)
+  2. Split at newline boundaries (for TOC-like content)
+  3. Split at word boundaries (last resort)
+- [x] Added `_merge_segments()` to recombine segments up to max size
+- [x] Added `_split_by_words()` for word-boundary splitting
+- [x] Added 3 new unit tests for long-paragraph splitting (296 total)
+
 ---
 
 ## Current Status
 
-**All tasks complete.** 277 tests passing. Pipeline is fully functional:
-- Document ingestion (PDF, TXT, MD, CSV, JSON, HTML)
+**All tasks complete.** 296 tests passing. Pipeline is fully functional:
+- Document ingestion (PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG)
 - MCQ generation with Gemini API
 - Validation with 6 quality rules
 - Frozen context building with 3 distractor strategies
 - Dataset export with manifest
+
+**No current failures.** Ready for end-to-end testing with ORAN source documents.
 
 ---
 
@@ -275,7 +314,7 @@ agentic-eval-curator/
 │   │   ├── cdr.py                  # CDR conversion utilities
 │   │   ├── chunker.py              # Chunking strategies
 │   │   ├── manifest.py             # Corpus manifest for incremental ingestion
-│   │   ├── parsers.py              # Document parsers (PDF, TXT, CSV, JSON, HTML)
+│   │   ├── parsers.py              # Document parsers (PDF, TXT, CSV, JSON, HTML, DOCX, XLSX, YANG)
 │   │   └── pipeline.py             # Ingestion pipeline orchestration
 │   ├── generate/
 │   │   ├── __init__.py             # Module exports
@@ -305,14 +344,14 @@ agentic-eval-curator/
     ├── __init__.py
     ├── conftest.py                 # Shared fixtures
     ├── test_cdr.py                 # CDR conversion tests (22 tests)
-    ├── test_chunker.py             # Chunker tests (16 tests)
+    ├── test_chunker.py             # Chunker tests (23 tests)
     ├── test_cli.py                 # CLI integration tests (28 tests)
     ├── test_evidence.py            # Evidence extraction tests (22 tests)
     ├── test_exporter.py            # Exporter tests (29 tests)
     ├── test_frozen_builder.py      # Frozen context tests (46 tests)
     ├── test_manifest.py            # Manifest tests (16 tests)
     ├── test_mcq_generator.py       # MCQ generator tests (22 tests)
-    ├── test_parsers.py             # Parser tests (11 tests)
+    ├── test_parsers.py             # Parser tests (29 tests)
     └── test_validator.py           # Validation tests (59 tests)
 ```
 
@@ -320,10 +359,21 @@ agentic-eval-curator/
 
 ## Next Steps
 
-All implementation tasks (1.0 - 6.0) are complete. Potential enhancements:
-- Add semantic distractor selection using embeddings
-- Add evaluation runner for frozen retrieval mode
-- Add reporting with per-slice and per-hop breakdowns
+All implementation tasks (1.0 - 6.0) are complete. Ready for end-to-end testing:
+
+1. **Run pipeline on ORAN source documents**:
+   ```bash
+   rag-bench ingest --input-dir /path/to/oran_specs/
+   rag-bench generate
+   rag-bench validate
+   rag-bench build-frozen
+   rag-bench export
+   ```
+
+2. **Potential enhancements** (if needed):
+   - Add semantic distractor selection using embeddings
+   - Add evaluation runner for frozen retrieval mode
+   - Add reporting with per-slice and per-hop breakdowns
 
 ---
 
@@ -341,4 +391,12 @@ pytest tests/
 
 # Lint
 ruff check src/ tests/
+
+# Pipeline (end-to-end)
+rag-bench ingest --input-dir /path/to/docs/   # Supports: PDF, TXT, MD, CSV, JSON, HTML, DOCX, XLSX, YANG
+rag-bench generate --slice all                 # Requires GEMINI_API_KEY
+rag-bench validate
+rag-bench build-frozen
+rag-bench export --output-dir data/export/
+rag-bench status                               # Check pipeline state
 ```

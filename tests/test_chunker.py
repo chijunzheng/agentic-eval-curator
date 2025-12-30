@@ -110,6 +110,61 @@ class TestSemanticChunker:
 
         assert len(chunks) == 0
 
+    def test_splits_long_paragraph_at_sentence_boundary(self):
+        """Test that oversized paragraphs are split at sentence boundaries."""
+        chunker = SemanticChunker(min_chunk_size=10, max_chunk_size=100)
+        # Create a long paragraph with multiple sentences
+        long_para = "First sentence here. Second sentence follows. Third sentence now. Fourth sentence added. Fifth sentence ends."
+        result = ParseResult(text=long_para)
+
+        chunks = chunker.chunk(result)
+
+        # Should split into multiple chunks
+        assert len(chunks) >= 2
+        # Each chunk should not be cut mid-word
+        for chunk in chunks:
+            # Should end with a complete word (no partial words)
+            assert not chunk.text.endswith("-")
+            # Should start with a capital or complete word
+            words = chunk.text.split()
+            if words:
+                assert len(words[0]) > 0
+
+    def test_splits_long_paragraph_at_newline_boundary(self):
+        """Test that TOC-like content is split at line boundaries."""
+        chunker = SemanticChunker(min_chunk_size=10, max_chunk_size=100)
+        # Simulate a TOC with tab-separated entries and single newlines
+        toc_para = "1. Introduction\t1\n2. Background\t5\n3. Methods\t10\n4. Results\t15\n5. Discussion\t20\n6. Conclusion\t25"
+        result = ParseResult(text=toc_para)
+
+        chunks = chunker.chunk(result)
+
+        # Should split into multiple chunks
+        assert len(chunks) >= 1
+        # Each chunk should contain complete lines, not cut mid-entry
+        for chunk in chunks:
+            # Should not start with a tab (which would indicate mid-line cut)
+            assert not chunk.text.startswith("\t")
+
+    def test_splits_long_paragraph_at_word_boundary_fallback(self):
+        """Test word-boundary fallback for text without sentences."""
+        chunker = SemanticChunker(min_chunk_size=10, max_chunk_size=50)
+        # Long text without sentence punctuation or newlines
+        long_text = "word " * 30  # ~150 chars
+        result = ParseResult(text=long_text.strip())
+
+        chunks = chunker.chunk(result)
+
+        # Should split into multiple chunks
+        assert len(chunks) >= 2
+        # No chunk should exceed max_chunk_size by much (allow small overflow)
+        for chunk in chunks:
+            assert len(chunk.text) <= 60  # max + buffer
+        # No mid-word cuts
+        for chunk in chunks:
+            assert not chunk.text.startswith(" ")
+            assert not chunk.text.endswith(" ")
+
 
 class TestTableAwareChunker:
     """Tests for TableAwareChunker."""
