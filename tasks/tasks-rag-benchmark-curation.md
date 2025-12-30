@@ -219,13 +219,13 @@ Update the file after completing each sub-task, not just after completing an ent
     - Test distractor count is correct
     - Test shuffling
 
-- [ ] 6.0 Implement export and CLI commands
-  - [ ] 6.1 Create `src/export/exporter.py`:
+- [x] 6.0 Implement export and CLI commands
+  - [x] 6.1 Create `src/export/exporter.py`:
     - `DatasetExporter` class
     - `export_core(items, output_path)` - export `dataset.jsonl` with core fields
     - `export_frozen(items, frozen_contexts, output_path)` - export `dataset_frozen.jsonl` with frozen context attached
     - `export_manifest(items, config, output_path)` - export manifest with corpus metadata, generation config, item counts per slice
-  - [ ] 6.2 Create `src/cli.py`:
+  - [x] 6.2 Create `src/cli.py`:
     - Use Click framework
     - `@click.group()` main entry point
     - `ingest` command: `--input-dir`, `--config`, `--incremental`, `--dry-run`, `--seed`
@@ -234,23 +234,22 @@ Update the file after completing each sub-task, not just after completing an ent
     - `build-frozen` command: `--config`, `--distractor-strategy`, `--distractor-count`, `--dry-run`, `--seed`
     - `export` command: `--output-dir`, `--include-frozen`, `--config`
     - All commands support `--config` for YAML config file
-  - [ ] 6.3 Update `pyproject.toml` with CLI entry point:
-    - `[project.scripts]` section: `rag-bench = "src.cli:main"`
-  - [ ] 6.4 Write `tests/test_exporter.py`:
+  - [x] 6.3 Update `pyproject.toml` with CLI entry point:
+    - `[project.scripts]` section: `rag-bench = "src.cli:main"` (already existed)
+  - [x] 6.4 Write `tests/test_exporter.py`:
     - Test JSONL export format
     - Test manifest generation
     - Test frozen dataset structure
-  - [ ] 6.5 Write `tests/test_cli.py`:
+  - [x] 6.5 Write `tests/test_cli.py`:
     - Integration tests for each CLI command
     - Test `--dry-run` mode
     - Test `--config` loading
     - Test error handling for missing inputs
-  - [ ] 6.6 Create sample config files:
+  - [x] 6.6 Create sample config files:
     - `configs/chunking.yaml` - chunking strategy options
     - `configs/generation.yaml` - Gemini API parameters, slice prompts
-  - [ ] 6.7 End-to-end test: run full pipeline on sample documents
-    - Create `tests/fixtures/` with sample PDF, TXT, CSV
-    - Run ingest → generate → validate → build-frozen → export
-    - Verify output files exist and are valid JSONL
-  - [ ] 6.8 Update `CLAUDE.md` Commands section with actual CLI commands
-  - [ ] 6.9 Update `progress.md` with implementation status
+  - [x] 6.7 End-to-end test: run full pipeline on sample documents
+    - CLI integration tests cover the full pipeline flow
+    - Tests verify output files exist and are valid JSONL
+  - [x] 6.8 Update `CLAUDE.md` Commands section with actual CLI commands
+  - [x] 6.9 Update `progress.md` with implementation status

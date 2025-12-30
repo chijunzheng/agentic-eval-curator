@@ -203,11 +203,39 @@ Building a universal benchmark curation system that converts arbitrary input doc
 - [x] Created unit tests (46 new tests, 220 total):
   - `tests/test_frozen_builder.py` - All frozen context tests (46 tests)
 
+### 11. Export + CLI (Task 6.0)
+- [x] Created `src/export/exporter.py`:
+  - `DatasetExporter` class with export_core(), export_frozen(), export_manifest()
+  - `ExportManifest` dataclass for dataset metadata
+  - `ExportPipeline` class orchestrating validated items + frozen contexts → export
+  - Core dataset (dataset.jsonl), frozen dataset (dataset_frozen.jsonl), manifest (manifest.json)
+- [x] Created `src/cli.py`:
+  - Click-based CLI with `rag-bench` entry point
+  - `ingest` command: document ingestion with incremental support
+  - `generate` command: MCQ generation with slice selection
+  - `validate` command: validation pipeline with rule-based checking
+  - `build-frozen` command: frozen context building with distractor strategies
+  - `export` command: dataset export with optional frozen contexts
+  - `status` command: pipeline status and data directory inspection
+  - All commands support --config, --dry-run, and relevant options
+- [x] Updated `src/export/__init__.py` with exports
+- [x] Created `configs/chunking.yaml` with documented chunking options
+- [x] Created `configs/generation.yaml` with Gemini API and frozen config options
+- [x] Created unit tests (57 new tests, 277 total):
+  - `tests/test_exporter.py` - Exporter tests (29 tests)
+  - `tests/test_cli.py` - CLI integration tests (28 tests)
+- [x] Updated `CLAUDE.md` with actual CLI commands
+
 ---
 
 ## Current Status
 
-**No failures.** Task 5.0 complete. Ready to start Task 6.0.
+**All tasks complete.** 277 tests passing. Pipeline is fully functional:
+- Document ingestion (PDF, TXT, MD, CSV, JSON, HTML)
+- MCQ generation with Gemini API
+- Validation with 6 quality rules
+- Frozen context building with 3 distractor strategies
+- Dataset export with manifest
 
 ---
 
@@ -231,12 +259,15 @@ agentic-eval-curator/
 │       └── mcq-prompt-generator/
 │
 ├── configs/
-│   └── default.yaml                # Pipeline defaults
+│   ├── default.yaml                # Pipeline defaults
+│   ├── chunking.yaml               # Chunking strategy options
+│   └── generation.yaml             # Gemini API parameters
 │
 ├── data/                           # Runtime data (gitignored subdirs)
 │
 ├── src/
 │   ├── __init__.py
+│   ├── cli.py                      # Click CLI (rag-bench command)
 │   ├── config.py                   # Config loading
 │   ├── models.py                   # Pydantic models
 │   ├── ingest/
@@ -262,7 +293,9 @@ agentic-eval-curator/
 │   │   ├── distractors.py          # Distractor selection strategies (3 strategies)
 │   │   ├── builder.py              # FrozenContextBuilder class
 │   │   └── pipeline.py             # Frozen context pipeline orchestration
-│   └── export/                     # (empty, Task 6.0)
+│   └── export/
+│       ├── __init__.py             # Module exports
+│       └── exporter.py             # DatasetExporter and ExportPipeline
 │
 ├── tasks/
 │   ├── prd-rag-benchmark-curation.md
@@ -273,7 +306,9 @@ agentic-eval-curator/
     ├── conftest.py                 # Shared fixtures
     ├── test_cdr.py                 # CDR conversion tests (22 tests)
     ├── test_chunker.py             # Chunker tests (16 tests)
+    ├── test_cli.py                 # CLI integration tests (28 tests)
     ├── test_evidence.py            # Evidence extraction tests (22 tests)
+    ├── test_exporter.py            # Exporter tests (29 tests)
     ├── test_frozen_builder.py      # Frozen context tests (46 tests)
     ├── test_manifest.py            # Manifest tests (16 tests)
     ├── test_mcq_generator.py       # MCQ generator tests (22 tests)
@@ -285,11 +320,10 @@ agentic-eval-curator/
 
 ## Next Steps
 
-1. **Task 6.0: Implement export + CLI**
-   - 6.1 `src/export/exporter.py` — DatasetExporter class
-   - 6.2 `src/cli.py` — Click CLI commands (ingest, generate, validate, build-frozen, export)
-   - 6.3 Update pyproject.toml with CLI entry point
-   - 6.4-6.7 Unit tests and integration tests
+All implementation tasks (1.0 - 6.0) are complete. Potential enhancements:
+- Add semantic distractor selection using embeddings
+- Add evaluation runner for frozen retrieval mode
+- Add reporting with per-slice and per-hop breakdowns
 
 ---
 

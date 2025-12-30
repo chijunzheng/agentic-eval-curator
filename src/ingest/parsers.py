@@ -2,12 +2,15 @@
 
 import csv
 import json
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
 import pdfplumber
 from bs4 import BeautifulSoup
+from docx import Document as DocxDocument
+from openpyxl import load_workbook
 
 from src.models import SourceType
 
@@ -210,6 +213,175 @@ class HTMLParser(BaseParser):
         return ParseResult(text=text, tables=tables)
 
 
+class DocxParser(BaseParser):
+    """Parser for Microsoft Word (.docx) documents."""
+
+    def parse(self, file_path: Path) -> ParseResult:
+        """Parse a DOCX file, extracting text and tables.
+
+        Args:
+            file_path: Path to the .docx file.
+
+        Returns:
+            ParseResult with extracted text and tables.
+        """
+        doc = DocxDocument(file_path)
+
+        # Extract text from paragraphs
+        paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
+        text = "\n\n".join(paragraphs)
+
+        # Extract tables
+        tables = []
+        for table in doc.tables:
+            rows = []
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells]
+                rows.append(cells)
+            if rows:
+                tables.append({
+                    "data": rows,
+                    "headers": rows[0] if rows else [],
+                })
+
+        # If there's table data, append text representation
+        if tables:
+            table_texts = []
+            for tbl in tables:
+                for row in tbl["data"]:
+                    table_texts.append(" | ".join(row))
+            if table_texts:
+                text = text + "\n\n" + "\n".join(table_texts) if text else "\n".join(table_texts)
+
+        return ParseResult(text=text, tables=tables)
+
+
+class XlsxParser(BaseParser):
+    """Parser for Microsoft Excel (.xlsx) spreadsheets."""
+
+    def parse(self, file_path: Path) -> ParseResult:
+        """Parse an XLSX file, extracting data from all sheets.
+
+        Args:
+            file_path: Path to the .xlsx file.
+
+        Returns:
+            ParseResult with text representation and table data.
+        """
+        workbook = load_workbook(file_path, data_only=True)
+
+        all_text_lines = []
+        tables = []
+
+        for sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+
+            # Add sheet name as section header
+            all_text_lines.append(f"=== Sheet: {sheet_name} ===")
+
+            rows = []
+            for row in sheet.iter_rows(values_only=True):
+                # Convert None values to empty strings and stringify all values
+                str_row = [str(cell) if cell is not None else "" for cell in row]
+                # Skip completely empty rows
+                if any(cell.strip() for cell in str_row):
+                    rows.append(str_row)
+                    all_text_lines.append(" | ".join(str_row))
+
+            if rows:
+                tables.append({
+                    "sheet": sheet_name,
+                    "data": rows,
+                    "headers": rows[0] if rows else [],
+                })
+
+            all_text_lines.append("")  # Blank line between sheets
+
+        text = "\n".join(all_text_lines).strip()
+        return ParseResult(text=text, tables=tables)
+
+
+class YangParser(BaseParser):
+    """Parser for YANG data model files.
+
+    YANG is a data modeling language used for network configuration
+    and state data (RFC 6020, RFC 7950). This parser extracts the
+    structured content while preserving hierarchy and metadata.
+    """
+
+    def parse(self, file_path: Path) -> ParseResult:
+        """Parse a YANG file.
+
+        Args:
+            file_path: Path to the .yang file.
+
+        Returns:
+            ParseResult with YANG model content.
+        """
+        content = file_path.read_text(encoding="utf-8")
+
+        # Extract metadata from top-level module/submodule
+        module_info = self._extract_module_info(content)
+
+        # Build structured text with metadata header
+        header_lines = []
+        if module_info.get("module"):
+            header_lines.append(f"Module: {module_info['module']}")
+        if module_info.get("namespace"):
+            header_lines.append(f"Namespace: {module_info['namespace']}")
+        if module_info.get("prefix"):
+            header_lines.append(f"Prefix: {module_info['prefix']}")
+        if module_info.get("organization"):
+            header_lines.append(f"Organization: {module_info['organization']}")
+        if module_info.get("description"):
+            header_lines.append(f"Description: {module_info['description']}")
+
+        if header_lines:
+            text = "\n".join(header_lines) + "\n\n" + content
+        else:
+            text = content
+
+        return ParseResult(text=text)
+
+    def _extract_module_info(self, content: str) -> dict[str, str]:
+        """Extract key metadata from YANG module.
+
+        Args:
+            content: Raw YANG file content.
+
+        Returns:
+            Dict with module, namespace, prefix, organization, description.
+        """
+        info: dict[str, str] = {}
+
+        # Extract module name
+        module_match = re.search(r'(?:module|submodule)\s+([^\s{]+)', content)
+        if module_match:
+            info["module"] = module_match.group(1)
+
+        # Extract namespace
+        ns_match = re.search(r'namespace\s+"([^"]+)"', content)
+        if ns_match:
+            info["namespace"] = ns_match.group(1)
+
+        # Extract prefix
+        prefix_match = re.search(r'prefix\s+([^\s;]+)', content)
+        if prefix_match:
+            info["prefix"] = prefix_match.group(1).strip('"')
+
+        # Extract organization
+        org_match = re.search(r'organization\s+"([^"]+)"', content)
+        if org_match:
+            info["organization"] = org_match.group(1)
+
+        # Extract description (first occurrence, usually module-level)
+        desc_match = re.search(r'description\s+"([^"]+)"', content)
+        if desc_match:
+            info["description"] = desc_match.group(1)
+
+        return info
+
+
 # Parser registry
 _PARSERS: dict[SourceType, type[BaseParser]] = {
     SourceType.TXT: TextParser,
@@ -218,6 +390,9 @@ _PARSERS: dict[SourceType, type[BaseParser]] = {
     SourceType.CSV: CSVParser,
     SourceType.JSON: JSONParser,
     SourceType.HTML: HTMLParser,
+    SourceType.DOCX: DocxParser,
+    SourceType.XLSX: XlsxParser,
+    SourceType.YANG: YangParser,
 }
 
 

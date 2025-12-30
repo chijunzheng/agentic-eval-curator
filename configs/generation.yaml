@@ -1,0 +1,57 @@
+# MCQ Generation Configuration
+# =============================
+# This file shows available options for MCQ generation using Gemini API.
+
+# Note: Requires GEMINI_API_KEY environment variable to be set.
+
+generation:
+  # Gemini model to use for MCQ generation
+  # Available: gemini-2.5-flash, gemini-2.5-pro
+  model: gemini-2.5-flash
+
+  # Temperature for generation (0.0 = deterministic, 2.0 = very random)
+  # Recommended: 0.5-0.8 for balanced creativity/consistency
+  temperature: 0.7
+
+  # Maximum output tokens for generation
+  max_output_tokens: 4096
+
+  # Target number of MCQ items per chunk group
+  # Actual counts may vary by slice (A=100%, B=66%, C=50%)
+  items_per_chunk_group: 3
+
+# Frozen context configuration
+frozen:
+  # Number of distractor chunks to include per item
+  # Recommended: 10 for frozen retrieval evaluation
+  distractor_count: 10
+
+  # Strategy for selecting distractor chunks
+  # - random: Randomly sample from corpus
+  # - same_doc: Prefer chunks from same document
+  # - semantic: Select semantically similar but wrong chunks (stub in v1)
+  distractor_strategy: random
+
+# Random seed for reproducibility (optional)
+# Set to ensure deterministic generation across runs
+# seed: 42
+
+# Example configurations for different use cases:
+
+# --- High-quality, lower temperature ---
+# generation:
+#   model: gemini-2.5-pro
+#   temperature: 0.5
+#   items_per_chunk_group: 2
+
+# --- Fast generation for testing ---
+# generation:
+#   model: gemini-2.5-flash
+#   temperature: 1.0
+#   items_per_chunk_group: 5
+
+# --- Reproducible runs ---
+# seed: 42
+# generation:
+#   model: gemini-2.5-flash
+#   temperature: 0.7

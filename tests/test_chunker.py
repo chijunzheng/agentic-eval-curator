@@ -5,6 +5,7 @@ import pytest
 from src.ingest.chunker import (
     FixedWindowChunker,
     SemanticChunker,
+    SemanticTableAwareChunker,
     TableAwareChunker,
     get_chunker,
 )
@@ -141,6 +142,51 @@ class TestTableAwareChunker:
         assert chunks[0].table_json is None
 
 
+class TestSemanticTableAwareChunker:
+    """Tests for SemanticTableAwareChunker (hybrid strategy)."""
+
+    def test_chunk_with_tables_uses_semantic_for_prose(self):
+        """Test that prose is chunked semantically while tables are preserved."""
+        chunker = SemanticTableAwareChunker(min_chunk_size=10, max_chunk_size=200)
+        tables = [{"data": [["Col1", "Col2"], ["A", "B"]], "page": 1}]
+        text = "First paragraph about topic X.\n\nSecond paragraph continues.\n\nThird paragraph."
+        result = ParseResult(text=text, tables=tables)
+
+        chunks = chunker.chunk(result)
+
+        # Should have table chunk(s) and semantic text chunk(s)
+        table_chunks = [c for c in chunks if c.table_json is not None]
+        text_chunks = [c for c in chunks if c.table_json is None]
+
+        assert len(table_chunks) == 1
+        assert "Col1 | Col2" in table_chunks[0].text
+
+        # Text should be semantically chunked (paragraphs merged)
+        assert len(text_chunks) >= 1
+
+    def test_chunk_without_tables_uses_semantic(self):
+        """Test fallback to semantic chunking when no tables."""
+        chunker = SemanticTableAwareChunker(min_chunk_size=10, max_chunk_size=100)
+        text = "Para 1.\n\nPara 2.\n\nPara 3."
+        result = ParseResult(text=text)
+
+        chunks = chunker.chunk(result)
+
+        # Should behave like SemanticChunker
+        assert len(chunks) >= 1
+        assert all(c.table_json is None for c in chunks)
+
+    def test_inherits_table_to_text(self):
+        """Test that table formatting is inherited."""
+        chunker = SemanticTableAwareChunker()
+        table_data = [["Header1", "Header2"], ["Value1", "Value2"]]
+
+        text = chunker._table_to_text(table_data)
+
+        assert "Header1 | Header2" in text
+        assert "Value1 | Value2" in text
+
+
 class TestGetChunker:
     """Tests for get_chunker factory function."""
 
@@ -163,6 +209,12 @@ class TestGetChunker:
         chunker = get_chunker("table_aware", chunk_size=300, overlap=30)
 
         assert isinstance(chunker, TableAwareChunker)
+
+    def test_get_semantic_table_aware(self):
+        """Test getting semantic table-aware chunker."""
+        chunker = get_chunker("semantic_table_aware", chunk_size=500, overlap=50)
+
+        assert isinstance(chunker, SemanticTableAwareChunker)
 
     def test_get_unknown_strategy(self):
         """Test error for unknown strategy."""

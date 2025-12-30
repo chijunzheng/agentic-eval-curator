@@ -4,12 +4,17 @@ import json
 from pathlib import Path
 
 import pytest
+from docx import Document as DocxDocument
+from openpyxl import Workbook
 
 from src.ingest.parsers import (
     CSVParser,
+    DocxParser,
     HTMLParser,
     JSONParser,
     TextParser,
+    XlsxParser,
+    YangParser,
     get_parser,
 )
 
@@ -173,6 +178,188 @@ class TestHTMLParser:
         assert result.tables[0]["data"][1] == ["1", "2"]
 
 
+class TestDocxParser:
+    """Tests for DocxParser."""
+
+    def test_parse_docx_paragraphs(self, temp_dir: Path):
+        """Test parsing a DOCX file with paragraphs."""
+        file_path = temp_dir / "test.docx"
+
+        # Create a DOCX file
+        doc = DocxDocument()
+        doc.add_paragraph("First paragraph")
+        doc.add_paragraph("Second paragraph")
+        doc.save(file_path)
+
+        parser = DocxParser()
+        result = parser.parse(file_path)
+
+        assert "First paragraph" in result.text
+        assert "Second paragraph" in result.text
+
+    def test_parse_docx_with_table(self, temp_dir: Path):
+        """Test parsing a DOCX file with a table."""
+        file_path = temp_dir / "table.docx"
+
+        doc = DocxDocument()
+        doc.add_paragraph("Intro text")
+        table = doc.add_table(rows=2, cols=2)
+        table.cell(0, 0).text = "A"
+        table.cell(0, 1).text = "B"
+        table.cell(1, 0).text = "1"
+        table.cell(1, 1).text = "2"
+        doc.save(file_path)
+
+        parser = DocxParser()
+        result = parser.parse(file_path)
+
+        assert "Intro text" in result.text
+        assert len(result.tables) == 1
+        assert result.tables[0]["data"][0] == ["A", "B"]
+        assert result.tables[0]["data"][1] == ["1", "2"]
+
+    def test_parse_docx_empty(self, temp_dir: Path):
+        """Test parsing an empty DOCX file."""
+        file_path = temp_dir / "empty.docx"
+
+        doc = DocxDocument()
+        doc.save(file_path)
+
+        parser = DocxParser()
+        result = parser.parse(file_path)
+
+        assert result.text == ""
+
+
+class TestXlsxParser:
+    """Tests for XlsxParser."""
+
+    def test_parse_xlsx_single_sheet(self, temp_dir: Path):
+        """Test parsing an XLSX file with one sheet."""
+        file_path = temp_dir / "test.xlsx"
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Data"
+        ws["A1"] = "Name"
+        ws["B1"] = "Age"
+        ws["A2"] = "Alice"
+        ws["B2"] = 30
+        wb.save(file_path)
+
+        parser = XlsxParser()
+        result = parser.parse(file_path)
+
+        assert "=== Sheet: Data ===" in result.text
+        assert "Name | Age" in result.text
+        assert "Alice | 30" in result.text
+        assert len(result.tables) == 1
+
+    def test_parse_xlsx_multiple_sheets(self, temp_dir: Path):
+        """Test parsing an XLSX file with multiple sheets."""
+        file_path = temp_dir / "multi.xlsx"
+
+        wb = Workbook()
+        ws1 = wb.active
+        ws1.title = "Sheet1"
+        ws1["A1"] = "Data1"
+
+        ws2 = wb.create_sheet("Sheet2")
+        ws2["A1"] = "Data2"
+        wb.save(file_path)
+
+        parser = XlsxParser()
+        result = parser.parse(file_path)
+
+        assert "=== Sheet: Sheet1 ===" in result.text
+        assert "=== Sheet: Sheet2 ===" in result.text
+        assert "Data1" in result.text
+        assert "Data2" in result.text
+        assert len(result.tables) == 2
+
+    def test_parse_xlsx_skips_empty_rows(self, temp_dir: Path):
+        """Test that empty rows are skipped."""
+        file_path = temp_dir / "sparse.xlsx"
+
+        wb = Workbook()
+        ws = wb.active
+        ws["A1"] = "Header"
+        ws["A3"] = "Value"  # Row 2 is empty
+        wb.save(file_path)
+
+        parser = XlsxParser()
+        result = parser.parse(file_path)
+
+        assert "Header" in result.text
+        assert "Value" in result.text
+
+
+class TestYangParser:
+    """Tests for YangParser."""
+
+    def test_parse_yang_module(self, temp_dir: Path):
+        """Test parsing a YANG module file."""
+        file_path = temp_dir / "test.yang"
+        content = '''module test-module {
+    namespace "urn:example:test";
+    prefix test;
+
+    organization "Test Org";
+    description "A test module";
+
+    container config {
+        leaf name {
+            type string;
+        }
+    }
+}'''
+        file_path.write_text(content)
+
+        parser = YangParser()
+        result = parser.parse(file_path)
+
+        assert "Module: test-module" in result.text
+        assert "Namespace: urn:example:test" in result.text
+        assert "Prefix: test" in result.text
+        assert "Organization: Test Org" in result.text
+        assert "container config" in result.text
+
+    def test_parse_yang_submodule(self, temp_dir: Path):
+        """Test parsing a YANG submodule file."""
+        file_path = temp_dir / "sub.yang"
+        content = '''submodule test-submodule {
+    belongs-to test-module {
+        prefix test;
+    }
+
+    description "A test submodule";
+}'''
+        file_path.write_text(content)
+
+        parser = YangParser()
+        result = parser.parse(file_path)
+
+        assert "Module: test-submodule" in result.text
+
+    def test_parse_yang_without_metadata(self, temp_dir: Path):
+        """Test parsing YANG without standard metadata."""
+        file_path = temp_dir / "minimal.yang"
+        content = '''// Just some YANG content
+container data {
+    leaf value {
+        type int32;
+    }
+}'''
+        file_path.write_text(content)
+
+        parser = YangParser()
+        result = parser.parse(file_path)
+
+        # Should still contain the raw content
+        assert "container data" in result.text
+        assert "leaf value" in result.text
+
+
 class TestGetParser:
     """Tests for get_parser factory function."""
 
@@ -223,6 +410,30 @@ class TestGetParser:
 
         with pytest.raises(ValueError, match="Unsupported file type"):
             get_parser(file_path)
+
+    def test_get_parser_docx(self, temp_dir: Path):
+        """Test getting parser for .docx file."""
+        file_path = temp_dir / "test.docx"
+        file_path.touch()
+
+        parser = get_parser(file_path)
+        assert isinstance(parser, DocxParser)
+
+    def test_get_parser_xlsx(self, temp_dir: Path):
+        """Test getting parser for .xlsx file."""
+        file_path = temp_dir / "test.xlsx"
+        file_path.touch()
+
+        parser = get_parser(file_path)
+        assert isinstance(parser, XlsxParser)
+
+    def test_get_parser_yang(self, temp_dir: Path):
+        """Test getting parser for .yang file."""
+        file_path = temp_dir / "test.yang"
+        file_path.touch()
+
+        parser = get_parser(file_path)
+        assert isinstance(parser, YangParser)
 
     def test_get_parser_case_insensitive(self, temp_dir: Path):
         """Test that file extension matching is case insensitive."""

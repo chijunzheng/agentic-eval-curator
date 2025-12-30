@@ -29,18 +29,55 @@ Build a universal benchmark curation system that converts arbitrary input docume
 - `src/` (ingest, generate, validate, eval, report)
 - `.claude/skills/` (workflows)
 
-## Commands (fill in as the repo stabilizes)
-- Setup: `<cmd>`
-- Format: `<cmd>`
-- Lint: `<cmd>`
-- Tests: `<cmd>`
-- Ingest → chunks: `<cmd>`
-- Generate MCQ dataset: `<cmd>`
-- Validate dataset: `<cmd>`
-- Build frozen contexts: `<cmd>`
-- Evaluate (Frozen Retrieval): `<cmd>`
-- Evaluate (End-to-End): `<cmd>`
-- Report: `<cmd>`
+## Commands
+
+### Setup
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### Development
+```bash
+# Lint
+ruff check src/ tests/
+
+# Run tests
+pytest tests/
+
+# Run tests with coverage
+pytest tests/ --cov=src --cov-report=term-missing
+```
+
+### Pipeline Commands (CLI)
+```bash
+# Ingest documents into CDR chunks
+rag-bench ingest --input-dir data/raw/ [--incremental] [--dry-run]
+
+# Generate MCQ items from chunks (requires GEMINI_API_KEY)
+rag-bench generate [--slice A|B|C|all] [--seed 42] [--dry-run]
+
+# Validate generated items
+rag-bench validate [--dry-run]
+
+# Build frozen retrieval contexts
+rag-bench build-frozen [--distractor-strategy random|same_doc|semantic] [-n 10] [--seed 42] [--dry-run]
+
+# Export final dataset
+rag-bench export [--output-dir data/export/] [--include-frozen|--no-frozen]
+
+# Check pipeline status
+rag-bench status
+```
+
+### CLI Options
+All commands support:
+- `--config FILE` or `-c FILE`: Path to YAML config file (default: configs/default.yaml)
+- `--help`: Show command help
+
+### Environment Variables
+- `GEMINI_API_KEY`: Required for the `generate` command
 
 ## Definition of Done (for any feature/PR)
 - Adds/updates unit tests for new logic.

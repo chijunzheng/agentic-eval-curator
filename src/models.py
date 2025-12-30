@@ -15,6 +15,9 @@ class SourceType(str, Enum):
     CSV = "csv"
     JSON = "json"
     HTML = "html"
+    DOCX = "docx"
+    XLSX = "xlsx"
+    YANG = "yang"
 
 
 class Slice(str, Enum):

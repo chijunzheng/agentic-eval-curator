@@ -1,0 +1,55 @@
+# Chunking Strategy Configuration
+# ================================
+# This file shows available chunking options for the ingestion pipeline.
+
+# Available strategies:
+# - fixed_window: Split text at fixed character intervals
+# - semantic: Split by paragraphs, preserving logical boundaries
+# - table_aware: Preserve tables + fixed window for prose
+# - semantic_table_aware: Preserve tables + semantic chunking for prose (RECOMMENDED for specs)
+
+chunking:
+  # Strategy name
+  strategy: semantic_table_aware
+
+  # Target chunk size in characters
+  # Recommended: 256-1024 for most use cases
+  chunk_size: 512
+
+  # Overlap between chunks in characters
+  # For semantic strategies, this sets min_chunk_size
+  # Recommended: 10-20% of chunk_size
+  chunk_overlap: 50
+
+# Example configurations for different use cases:
+
+# --- Small chunks for fine-grained retrieval ---
+# chunking:
+#   strategy: fixed_window
+#   chunk_size: 256
+#   chunk_overlap: 25
+
+# --- Larger chunks for more context ---
+# chunking:
+#   strategy: fixed_window
+#   chunk_size: 1024
+#   chunk_overlap: 100
+
+# --- Paragraph-based semantic chunking ---
+# chunking:
+#   strategy: semantic
+#   chunk_size: 512
+#   chunk_overlap: 50
+
+# --- Table-aware with fixed window (legacy) ---
+# chunking:
+#   strategy: table_aware
+#   chunk_size: 512
+#   chunk_overlap: 50
+
+# --- RECOMMENDED: Semantic + Table-aware for 3GPP/O-RAN specs ---
+# Best for documents with both narrative prose and data tables
+# chunking:
+#   strategy: semantic_table_aware
+#   chunk_size: 512
+#   chunk_overlap: 50

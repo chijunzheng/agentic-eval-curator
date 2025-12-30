@@ -197,7 +197,7 @@ class TableAwareChunker(BaseChunker):
         """
         self.chunk_size = chunk_size
         self.overlap = overlap
-        self._fixed_chunker = FixedWindowChunker(chunk_size, overlap)
+        self._text_chunker = FixedWindowChunker(chunk_size, overlap)
 
     def chunk(self, parse_result: ParseResult) -> list[ChunkMetadata]:
         """Split text while preserving table boundaries.
@@ -213,9 +213,9 @@ class TableAwareChunker(BaseChunker):
         """
         chunks = []
 
-        # If no tables, fall back to fixed window
+        # If no tables, fall back to text chunker
         if not parse_result.tables:
-            return self._fixed_chunker.chunk(parse_result)
+            return self._text_chunker.chunk(parse_result)
 
         # Process tables first
         for table in parse_result.tables:
@@ -231,7 +231,7 @@ class TableAwareChunker(BaseChunker):
         # For simplicity, we also chunk the full text
         # In production, you'd want to exclude table regions
         text_result = ParseResult(text=parse_result.text)
-        text_chunks = self._fixed_chunker.chunk(text_result)
+        text_chunks = self._text_chunker.chunk(text_result)
 
         # Interleave based on page order if available
         chunks.extend(text_chunks)
@@ -258,11 +258,32 @@ class TableAwareChunker(BaseChunker):
         return "\n".join(lines)
 
 
+class SemanticTableAwareChunker(TableAwareChunker):
+    """Hybrid chunker: semantic chunking for prose + table preservation.
+
+    Best for structured documents like 3GPP/O-RAN specs that have
+    both narrative prose and data tables.
+    """
+
+    def __init__(self, min_chunk_size: int = 100, max_chunk_size: int = 1000):
+        """Initialize semantic table-aware chunker.
+
+        Args:
+            min_chunk_size: Minimum chunk size for prose.
+            max_chunk_size: Maximum chunk size for prose.
+        """
+        # Don't call super().__init__ since we're replacing the text chunker
+        self.min_chunk_size = min_chunk_size
+        self.max_chunk_size = max_chunk_size
+        self._text_chunker = SemanticChunker(min_chunk_size, max_chunk_size)
+
+
 # Chunker registry
 _CHUNKERS: dict[str, type[BaseChunker]] = {
     "fixed_window": FixedWindowChunker,
     "semantic": SemanticChunker,
     "table_aware": TableAwareChunker,
+    "semantic_table_aware": SemanticTableAwareChunker,
 }
 
 
@@ -296,5 +317,7 @@ def get_chunker(
         return chunker_class(min_chunk_size=overlap, max_chunk_size=chunk_size * 2)
     elif strategy == "table_aware":
         return chunker_class(chunk_size=chunk_size, overlap=overlap)
+    elif strategy == "semantic_table_aware":
+        return chunker_class(min_chunk_size=overlap, max_chunk_size=chunk_size * 2)
     else:
         return chunker_class()
